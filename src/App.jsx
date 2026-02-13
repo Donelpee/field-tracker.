@@ -3,6 +3,7 @@ import { ThemeProvider } from './lib/ThemeContext'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Dashboard from './components/Dashboard'
+import DebugPage from './components/DebugPage'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -47,6 +48,11 @@ function App() {
         <div className="text-xl font-semibold text-gray-600">Loading...</div>
       </div>
     )
+  }
+
+  // Debug Route
+  if (window.location.pathname === '/debug') {
+    return <DebugPage session={session} />
   }
 
   if (!session) {

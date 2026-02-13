@@ -66,27 +66,32 @@ export default function Dashboard({ session, onSignOut }) {
             // But let's be safe or just wait for role_id
         }
 
-        if (userProfile && userProfile.role !== 'staff') {
+        const role = userProfile?.role?.toLowerCase()?.trim()
+        if (userProfile && role !== 'staff') {
             fetchStaff()
             fetchJobs()
             fetchPhotos()
         }
-        // Force settings tab if that's the current view but validation fails? 
-        // No, handled by rendering.
     }, [userProfile])
 
     const fetchUserProfile = async () => {
-        const { data } = await supabase
+        setLoading(true)
+        const { data, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single()
 
+        if (error) {
+            console.error('Error fetching profile:', error)
+            setUserProfile(null)
+        }
+
         if (data) {
             console.log('User profile loaded:', data)
             setUserProfile(data)
         }
-        setLoading(false) // Set loading false here so we can start rendering
+        setLoading(false)
     }
 
     const fetchPermissions = async (roleId) => {
@@ -101,9 +106,6 @@ export default function Dashboard({ session, onSignOut }) {
         }
 
         const codes = data.map(item => item.permissions.code)
-        // Check if admin has everything? Migration gave admins specific permissions.
-        // If legacy super admin, maybe manually add all? 
-        // The migration script assigned permissions to 'Admin' and 'Super Admin'.
         setPermissions(codes)
     }
 
@@ -121,14 +123,6 @@ export default function Dashboard({ session, onSignOut }) {
         )
     }
 
-    // New Role check: If role is Staff (by name or ID checking permissions?), render StaffDashboard
-    // Actually, StaffDashboard is for field staff.
-    // Let's assume if they have 'dashboard.view' they use THIS dashboard.
-    // If they ONLY have 'jobs.view' + 'photos.upload' (typical staff), they might need StaffDashboard.
-    // But `StaffDashboard` is a completely different UI.
-    // We need to decide which dashboard to show.
-    // Existing logic: if role === 'staff' -> StaffDashboard.
-    // Let's keep that for now alongside RBAC.
     if (userProfile && userProfile.role === 'staff') {
         return (
             <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -136,7 +130,6 @@ export default function Dashboard({ session, onSignOut }) {
             </div>
         )
     }
-
 
     const baseMenuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home, permission: 'dashboard.view' },
@@ -153,10 +146,12 @@ export default function Dashboard({ session, onSignOut }) {
 
     const menuItems = baseMenuItems.filter(item => {
         if (!item.permission) return true
-        return hasPermission(item.permission) || (userProfile?.role === 'admin' && permissions.length === 0)
+        const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'Super Admin'
+        return hasPermission(item.permission) || (isAdmin && permissions.length === 0)
     })
 
-    if (hasPermission('settings.view') || (userProfile?.role === 'admin' && permissions.length === 0)) {
+    const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'Super Admin'
+    if (hasPermission('settings.view') || (isAdmin && permissions.length === 0)) {
         menuItems.push({ id: 'settings', label: 'Settings', icon: SettingsIcon })
     }
 
@@ -172,7 +167,8 @@ export default function Dashboard({ session, onSignOut }) {
     }
 
     const fetchJobs = async () => {
-        const { data } = await supabase
+        console.log('Fetching jobs...')
+        const { data, error } = await supabase
             .from('jobs')
             .select(`
         *,
@@ -180,7 +176,11 @@ export default function Dashboard({ session, onSignOut }) {
       `)
             .order('created_at', { ascending: false })
 
-        if (data) setJobs(data)
+        if (error) console.error('Error fetching jobs:', error)
+        if (data) {
+            console.log('Jobs fetched:', data.length)
+            setJobs(data)
+        }
     }
 
     const fetchPhotos = async () => {
@@ -771,14 +771,60 @@ export default function Dashboard({ session, onSignOut }) {
         )
     }
 
-    if (userProfile?.role === 'staff') {
-        return <StaffDashboard session={session} onSignOut={onSignOut} />
+    // Helper to check for staff role (case insensitive)
+    const normalizedRole = userProfile?.role?.toLowerCase()?.trim()
+    const isStaff = normalizedRole === 'staff'
+    const isVerifiedAdmin = normalizedRole === 'admin' || normalizedRole === 'super admin'
+
+    if (userProfile && isStaff) {
+        return (
+            <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+                <StaffDashboard session={session} onSignOut={onSignOut} />
+            </div>
+        )
     }
 
-
+    // Fail Closed: If we didn't match Staff setup AND we aren't a verified Admin, show nothing.
+    // This catches cases where userProfile is null (fetch failed) or role is undefined.
+    if (!loading && (!userProfile || !isVerifiedAdmin)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md mx-auto">
+                    <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Error</h2>
+                    <p className="text-gray-600 mb-6">
+                        Unable to verify your account permissions.
+                    </p>
+                    <div className="bg-gray-100 p-3 rounded mb-4 text-left text-xs font-mono break-all">
+                        <p><strong>Debug Info:</strong></p>
+                        <p>Status: {loading ? 'Loading' : 'Loaded'}</p>
+                        <p>User ID: {session?.user?.id}</p>
+                        <p>Profile Found: {userProfile ? 'Yes' : 'NO (Fetch Failed)'}</p>
+                        <p>Role: {userProfile?.role || 'N/A'}</p>
+                    </div>
+                    <button onClick={onSignOut} className="btn-primary w-full">
+                        Sign Out
+                    </button>
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="text-blue-600 text-sm font-medium mt-2 hover:underline"
+                        >
+                            Retry Connection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen gradient-bg-light">
+            {/* Admin Identity Banner - Always visible for Admin View */}
+            <div className="bg-gray-900 text-gray-400 text-[10px] p-1 text-center font-mono border-b border-gray-800">
+                ADMIN VIEW | User: {userProfile?.full_name} ({userProfile?.role}) | ID: {session.user.id.slice(0, 6)}...
+            </div>
+
             {/* Mobile Header */}
             <div className="lg:hidden glass-white shadow-lg p-4 flex items-center justify-between sticky top-0 z-20 safe-top">
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-icon">
@@ -798,6 +844,11 @@ export default function Dashboard({ session, onSignOut }) {
             <div className="flex">
                 {/* Sidebar */}
                 <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-20 w-72 glass-white shadow-premium transition-smooth flex flex-col`}>
+
+                    {/* DEBUG BANNER (Temporary) */}
+                    <div className="lg:hidden p-2 bg-yellow-100 text-xs break-all">
+                        Role: {userProfile?.role || 'null'} | Jobs: {jobs.length} | Staff: {staff.length}
+                    </div>
                     <div className="p-6 border-b border-gray-100 flex-shrink-0 flex justify-center">
                         <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hidden lg:block">
                             Trakby

@@ -96,6 +96,81 @@ export default function StaffDashboard({ session, onSignOut }) {
     }
   }
 
+  // Attendance & Efficiency
+  const [myAttendance, setMyAttendance] = useState([])
+  const [efficiencyScore, setEfficiencyScore] = useState(0)
+
+  useEffect(() => {
+    fetchMyAttendance()
+  }, [])
+
+  useEffect(() => {
+    if (myJobs.length > 0 || myAttendance.length > 0 || myPhotos.length > 0) {
+      calculateEfficiency()
+    }
+  }, [myJobs, myAttendance, myPhotos])
+
+  const fetchMyAttendance = async () => {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('date', { ascending: false })
+
+    if (data) setMyAttendance(data)
+  }
+
+  const calculateEfficiency = () => {
+    console.log('Calculating Efficiency... Data:', {
+      jobs: myJobs.length,
+      attendance: myAttendance.length,
+      photos: myPhotos.length
+    })
+
+    // 1. Job Completion (60%)
+    const completedJobs = myJobs.filter(j => j.status === 'completed')
+    const jobCompletionRate = myJobs.length > 0
+      ? (completedJobs.length / myJobs.length)
+      : 0
+    const scoreJobs = Math.round(jobCompletionRate * 60)
+    console.log('Score - Jobs:', scoreJobs, `(${completedJobs.length}/${myJobs.length})`)
+
+    // 2. Punctuality (20%) - Check in before 9:00 AM
+    const onTimeCheckIns = myAttendance.filter(a => {
+      if (!a.check_in_time) return false
+      const checkIn = new Date(a.check_in_time)
+      // Simple check for now, ensuring we handle timezones generally okay by trusting browser conversion or simple hour check
+      const hour = checkIn.getHours()
+      return hour < 9 || (hour === 9 && checkIn.getMinutes() === 0)
+    }).length
+
+    const punctualityRate = myAttendance.length > 0
+      ? (onTimeCheckIns / myAttendance.length)
+      : 0 // If no attendance, assume 0 for strictness
+    const scorePunctuality = Math.round(punctualityRate * 20)
+    console.log('Score - Punctuality:', scorePunctuality, `(${onTimeCheckIns}/${myAttendance.length})`)
+
+    // 3. Photo Compliance (10%) - Target: 1 photo per completed job
+    const photoRate = completedJobs.length > 0
+      ? Math.min((myPhotos.length / completedJobs.length), 1) // Cap at 1.0
+      : 0
+    const scorePhotos = Math.round(photoRate * 10)
+    console.log('Score - Photos:', scorePhotos, `(${myPhotos.length} photos / ${completedJobs.length} completed jobs)`)
+
+    // 4. Process Adherence (10%) - Started Jobs properly
+    const startedJobs = myJobs.filter(j => j.status === 'in_progress' || j.status === 'completed')
+    const processRate = myJobs.length > 0
+      ? (startedJobs.length / myJobs.length)
+      : 0
+    const scoreProcess = Math.round(processRate * 10)
+    console.log('Score - Process:', scoreProcess, `(${startedJobs.length}/${myJobs.length})`)
+
+    // Total Score
+    const total = scoreJobs + scorePunctuality + scorePhotos + scoreProcess
+    console.log('Total Efficiency Score:', total)
+    setEfficiencyScore(total)
+  }
+
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser')
@@ -198,7 +273,7 @@ export default function StaffDashboard({ session, onSignOut }) {
           <StaffStatCard
             icon={Zap}
             label="Efficiency"
-            value="98%"
+            value={`${efficiencyScore}%`}
             gradient="gradient-staff-warning"
           />
         </div>

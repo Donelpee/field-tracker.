@@ -39,17 +39,28 @@ export default function LoginActivity() {
 
     const fetchLogs = async () => {
         setLoading(true)
-        const { data } = await supabase
-            .from('login_logs')
-            .select(`
-        *,
-        profiles (full_name)
-      `)
-            .order('created_at', { ascending: false })
-            .limit(100)
+        try {
+            const { data, error } = await supabase
+                .from('login_logs')
+                .select(`
+                    *,
+                    profiles (full_name)
+                `)
+                .order('created_at', { ascending: false })
+                .limit(100)
 
-        if (data) setLogs(data)
-        setLoading(false)
+            if (error) {
+                console.warn('Login logs table missing or inaccessible:', error.message)
+                setLogs([]) // Fail gracefuly
+            } else if (data) {
+                setLogs(data)
+            }
+        } catch (err) {
+            console.error('Error fetching login logs:', err)
+            setLogs([])
+        } finally {
+            setLoading(false)
+        }
     }
 
     const filteredLogs = logs.filter(log => {
