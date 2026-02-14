@@ -209,6 +209,23 @@ export default function Dashboard({ session, onSignOut }) {
     const DashboardView = () => {
         const [staffLocations, setStaffLocations] = useState([])
 
+        // Helper to handle mixed address formats (JSON string vs plain text)
+        const getDisplayAddress = (addr) => {
+            if (!addr) return null
+            try {
+                // Check if it's a JSON string
+                if (addr.startsWith('{') || addr.startsWith('[')) {
+                    const parsed = JSON.parse(addr)
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        return parsed.short || parsed.full || addr
+                    }
+                }
+            } catch (e) {
+                // Not JSON, return as is
+            }
+            return addr
+        }
+
         useEffect(() => {
             fetchStaffLocations()
 
@@ -289,11 +306,7 @@ export default function Dashboard({ session, onSignOut }) {
                                         <div className="text-sm p-2">
                                             <p className="font-bold text-lg mb-1">{location.profiles?.full_name}</p>
                                             <p className="text-gray-600 mb-2">{location.profiles?.phone}</p>
-                                            {location.address_short && (
-                                                <p className="text-gray-700 flex items-center gap-1 mb-1">
-                                                    <MapPin className="w-3 h-3" /> {location.address_short}
-                                                </p>
-                                            )}
+
                                             <p className="text-xs text-gray-500 mt-2">
                                                 Last updated: {new Date(location.recorded_at).toLocaleTimeString()}
                                             </p>
@@ -839,23 +852,33 @@ export default function Dashboard({ session, onSignOut }) {
             </div>
 
             <div className="flex relative">
+                {/* Toggle Buttons (Fixed) */}
+                {sidebarOpen && (
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex fixed top-4 left-64 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
+                        title="Collapse Sidebar"
+                    >
+                        <X size={20} />
+                    </button>
+                )}
+
+                {!sidebarOpen && (
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="flex fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
+                        title="Expand Sidebar"
+                    >
+                        <Menu size={20} />
+                    </button>
+                )}
+
                 {/* Sidebar */}
                 <aside className={`
                     fixed lg:sticky top-0 h-screen z-30
                     glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col
                     ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
                 `}>
-                    {/* Desktop Collapse Arrow (Visible only when open) */}
-                    <button
-                        onClick={() => setSidebarOpen(false)}
-                        className="hidden lg:flex absolute -right-3 top-24 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-md hover:bg-gray-50 text-gray-500 z-50 transform hover:scale-110 transition-transform"
-                        title="Collapse Sidebar"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                        </svg>
-                    </button>
-
                     {/* DEBUG BANNER (Temporary) */}
                     <div className="lg:hidden p-2 bg-yellow-100 text-xs break-all">
                         Role: {userProfile?.role || 'null'} | Jobs: {jobs.length} | Staff: {staff.length}

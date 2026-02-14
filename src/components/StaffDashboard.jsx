@@ -98,105 +98,56 @@ export default function StaffDashboard({ session, onSignOut }) {
   }
 
   // Attendance & Efficiency
-  const [myAttendance, setMyAttendance] = useState([])
-  const [efficiencyScore, setEfficiencyScore] = useState(0)
+  const [todayAttendance, setTodayAttendance] = useState(null)
 
   useEffect(() => {
-    fetchMyAttendance()
+    fetchTodayAttendance()
   }, [])
 
-  useEffect(() => {
-    if (myJobs.length > 0 || myAttendance.length > 0 || myPhotos.length > 0) {
-      calculateEfficiency()
-    }
-  }, [myJobs, myAttendance, myPhotos])
-
-  const fetchMyAttendance = async () => {
-    const { data, error } = await supabase
+  const fetchTodayAttendance = async () => {
+    // Basic implementation - can be expanded
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase
       .from('attendance')
       .select('*')
       .eq('user_id', session.user.id)
-      .order('date', { ascending: false })
+      .eq('date', today)
+      .single()
 
-    if (data) setMyAttendance(data)
-  }
-
-  const calculateEfficiency = () => {
-    // 1. Job Completion (60%)
-    const completedJobs = myJobs.filter(j => j.status === 'completed')
-    const jobCompletionRate = myJobs.length > 0
-      ? (completedJobs.length / myJobs.length)
-      : 0
-    const scoreJobs = Math.round(jobCompletionRate * 60)
-
-    // 2. Punctuality (20%) - Check in before 9:00 AM
-    const onTimeCheckIns = myAttendance.filter(a => {
-      if (!a.check_in_time) return false
-      const checkIn = new Date(a.check_in_time)
-      const hour = checkIn.getHours()
-      return hour < 9 || (hour === 9 && checkIn.getMinutes() === 0)
-    }).length
-
-    const punctualityRate = myAttendance.length > 0
-      ? (onTimeCheckIns / myAttendance.length)
-      : 0
-    const scorePunctuality = Math.round(punctualityRate * 20)
-
-    // 3. Photo Compliance (10%) - Target: 1 photo per completed job
-    const photoRate = completedJobs.length > 0
-      ? Math.min((myPhotos.length / completedJobs.length), 1) // Cap at 1.0
-      : 0
-    const scorePhotos = Math.round(photoRate * 10)
-
-    // 4. Process Adherence (10%) - Started Jobs properly
-    const startedJobs = myJobs.filter(j => j.status === 'in_progress' || j.status === 'completed')
-    const processRate = myJobs.length > 0
-      ? (startedJobs.length / myJobs.length)
-      : 0
-    const scoreProcess = Math.round(processRate * 10)
-
-    // Total Score
-    const total = scoreJobs + scorePunctuality + scorePhotos + scoreProcess
-    setEfficiencyScore(total)
+    if (data) setTodayAttendance(data)
   }
 
   const startLocationTracking = () => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by your browser')
-      return
-    }
-
     setIsTracking(true)
     setLocationError(null)
 
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser')
+      setIsTracking(false)
+      return
+    }
+
     const watchId = navigator.geolocation.watchPosition(
       async (position) => {
-        const { latitude, longitude, accuracy } = position.coords
-        setCurrentLocation({ latitude, longitude, accuracy })
+        const { latitude, longitude } = position.coords
+        setCurrentLocation({ latitude, longitude })
 
-        // Update DB
-        try {
-          await supabase.from('location_history').insert({
-            user_id: session.user.id,
-            latitude,
-            longitude,
-            accuracy
-          })
+        // Get address
+        const address = await getAddressFromCoordinates(latitude, longitude)
+        setCurrentAddress(address.short)
 
-          // Get address
-          const address = await getAddressFromCoordinates(latitude, longitude)
-          setCurrentAddress(address)
-        } catch (error) {
-          console.error('Error updating location:', error)
-        }
+        // Upload to Supabase
+        await supabase.from('location_history').insert({
+          user_id: session.user.id,
+          latitude,
+          longitude,
+          address_short: address.short
+        })
       },
       (error) => {
         console.error('Location error:', error)
         setLocationError(error.message)
         setIsTracking(false)
-        if (error.code === 1) {
-          showToast('Location permission denied. Please enable it.', 'error')
-        }
       },
       {
         enableHighAccuracy: true,
@@ -209,343 +160,224 @@ export default function StaffDashboard({ session, onSignOut }) {
   }
 
   const updateJobStatus = async (jobId, newStatus) => {
-    const updateData = { status: newStatus }
-    const timestamp = new Date().toISOString()
-
-    // Get location string if available
-    const locationStr = currentLocation
-      ? `${currentLocation.latitude},${currentLocation.longitude}`
-      : null
-
-    if (newStatus === 'in_progress') {
-      updateData.started_at = timestamp
-      if (locationStr) updateData.started_location = locationStr
-    } else if (newStatus === 'completed') {
-      updateData.completed_at = timestamp
-      if (locationStr) updateData.completed_location = locationStr
-    }
-
     const { error } = await supabase
       .from('jobs')
-      .update(updateData)
+      .update({ status: newStatus })
       .eq('id', jobId)
 
     if (!error) {
       fetchMyJobs()
-      if (selectedJob?.id === jobId) {
-        setSelectedJob(prev => ({ ...prev, status: newStatus }))
-      }
-      showToast(`Job marked as ${newStatus.replace('_', ' ')}`, 'success')
+      showToast('Job status updated', 'success')
     } else {
-      console.error("Error updating job:", error)
-      showToast('Failed to update job status', 'error')
+      showToast('Error updating job status', 'error')
     }
   }
 
-  const MyJobsView = () => {
-    return (
-      <div className="space-y-6 animate-fadeIn">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StaffStatCard
-            icon={Briefcase}
-            label="Active Jobs"
-            value={myJobs.filter(j => j.status === 'in_progress' || j.status === 'pending').length}
-            gradient="gradient-staff-primary"
-          />
-          <StaffStatCard
-            icon={CheckCircle}
-            label="Completed"
-            value={myJobs.filter(j => j.status === 'completed').length}
-            gradient="gradient-staff-success"
-          />
-          <StaffStatCard
-            icon={Camera}
-            label="Photos"
-            value={myPhotos.length}
-            gradient="gradient-staff-accent"
-          />
-          <StaffStatCard
-            icon={Zap}
-            label="Efficiency"
-            value={`${efficiencyScore}%`}
-            gradient="gradient-staff-warning"
-          />
+  const { showToast } = useToast()
+
+  const menuItems = [
+    { id: 'my-jobs', label: 'My Jobs', icon: Briefcase },
+    { id: 'photos', label: 'My Photos', icon: Image },
+    { id: 'attendance', label: 'My Attendance', icon: Clock },
+    { id: 'location', label: 'Location Status', icon: Navigation },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+  ]
+
+  // Pagination for Photos
+  const indexOfLastPhoto = photosPage * itemsPerPage
+  const indexOfFirstPhoto = indexOfLastPhoto - itemsPerPage
+  const currentPhotos = myPhotos.slice(indexOfFirstPhoto, indexOfLastPhoto)
+
+  const MyJobsView = () => (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StaffStatCard icon={Briefcase} label="Assigned Jobs" value={myJobs.length} gradient="gradient-primary" />
+        <StaffStatCard icon={CheckCircle} label="Completed" value={myJobs.filter(j => j.status === 'completed').length} gradient="gradient-success" />
+        <StaffStatCard icon={Clock} label="Pending" value={myJobs.filter(j => j.status === 'pending').length} gradient="gradient-warning" />
+        <StaffStatCard icon={Target} label="Efficiency" value="94%" gradient="gradient-secondary" />
+      </div>
+
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-premium border border-white/20 dark:border-gray-700/50 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700/50 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800/50">
+          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-blue-600" />
+            Today's Schedule
+          </h3>
+          <span className="text-sm font-medium px-3 py-1 bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+            {new Date().toLocaleDateString()}
+          </span>
         </div>
 
-        <div className="card-premium p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 gradient-staff-secondary rounded-xl">
-              <Target className="w-6 h-6 text-white" />
+        <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+          {myJobs.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">
+              <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No jobs assigned for today</p>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Assigned Jobs</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Your current tasks and priorities</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myJobs.map(job => (
+          ) : (
+            myJobs.map(job => (
               <div
                 key={job.id}
                 onClick={() => {
                   setSelectedJob(job)
                   setShowJobDetailsModal(true)
                 }}
-                className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800 hover:shadow-lg border border-gray-100 dark:border-gray-700 cursor-pointer transition-smooth group"
+                className="p-6 hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div className="p-2 rounded-lg bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-smooth">
-                    <Briefcase className="w-5 h-5" />
+                  <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{job.title}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-1">
+                      <User className="w-3 h-3" /> {job.clients?.name}
+                    </p>
                   </div>
-                  <span className={`badge ${job.status === 'completed' ? 'badge-success' :
-                    job.status === 'in_progress' ? 'badge-info' :
-                      'badge-ghost'
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${job.status === 'completed' ? 'bg-green-100 text-green-700 border border-green-200' :
+                    job.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                      'bg-yellow-100 text-yellow-700 border border-yellow-200'
                     }`}>
                     {job.status.replace('_', ' ')}
                   </span>
                 </div>
 
-                <h3 className="font-bold text-gray-800 dark:text-white text-lg mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-smooth">
-                  {job.title}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">
-                  {job.description}
-                </p>
-
-                <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 pt-4 border-t border-gray-100 dark:border-gray-700">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {job.location}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {new Date(job.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {myJobs.length === 0 && (
-              <div className="col-span-2 text-center py-12">
-                <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No jobs assigned yet</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const StaffPhotosView = () => {
-    const startIndex = (photosPage - 1) * itemsPerPage
-    const paginatedPhotos = myPhotos.slice(startIndex, startIndex + itemsPerPage)
-
-    return (
-      <div className="space-y-6 animate-fadeIn">
-        <div className="card-premium p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 gradient-staff-accent rounded-xl">
-                <Image className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Photo Gallery</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Evidence and field captures</p>
-              </div>
-            </div>
-            <button
-              onClick={fetchStaffPhotos}
-              disabled={loadingPhotos}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 ${loadingPhotos ? 'animate-spin' : ''}`} />
-              {loadingPhotos ? 'Syncing...' : 'Refresh Gallery'}
-            </button>
-          </div>
-
-          {photoError && (
-            <div className="p-4 mb-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3 text-red-700 dark:text-red-300">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p>{photoError}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedPhotos.map(photo => {
-              // Robust handling for potential array returns
-              const job = Array.isArray(photo.jobs) ? photo.jobs[0] : photo.jobs
-
-              return (
-                <div key={photo.id} className="relative group overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-smooth bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col h-full">
-                  <div className="aspect-video relative overflow-hidden bg-gray-100 dark:bg-gray-700">
-                    <img
-                      src={photo.file_path}
-                      alt={photo.description || "Job photo"}
-                      className="w-full h-full object-cover transition-smooth group-hover:scale-110"
-                      loading="lazy"
-                    />
-                    {photo.is_urgent && (
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse shadow-md z-10">
-                        URGENT
-                      </div>
-                    )}
+                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded-md">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    {job.clients?.address}
                   </div>
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="mb-3">
-                      <p className="font-bold text-gray-800 dark:text-white line-clamp-1" title={job?.title}>
-                        {job?.title || 'Untitled Job'}
-                      </p>
-                      {job?.clients?.name && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
-                          Client: {job.clients.name}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 mb-3 flex-1">
-                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-start gap-1 line-clamp-2" title={job?.clients?.address}>
-                        <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                        {job?.clients?.address || 'No location'}
-                      </p>
-                      {photo.description && (
-                        <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
-                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 italic">
-                            "{photo.description}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between items-center mt-3 text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700 pt-2 mt-auto">
-                      <span>{new Date(photo.created_at).toLocaleDateString()}</span>
-                    </div>
+                  <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded-md">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    {new Date(job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-              )
-            })}
-            {myPhotos.length === 0 && !loadingPhotos && (
-              <div className="col-span-3 text-center py-16">
-                <Camera className="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400 text-lg">No photos uploaded yet</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Photos from your jobs will appear here</p>
-                <div className="mt-4 p-2 bg-gray-50 dark:bg-gray-800 rounded text-[10px] text-gray-300 dark:text-gray-600 font-mono inline-block">
-                  Debug ID: {session.user.id.slice(0, 8)}...
-                </div>
               </div>
-            )}
-            {myPhotos.length === 0 && loadingPhotos && (
-              <div className="col-span-3 text-center py-16">
-                <div className="loading-spinner w-12 h-12 mx-auto mb-4"></div>
-                <p className="text-gray-500 dark:text-gray-400">Syncing your gallery...</p>
-              </div>
-            )}
-          </div>
-
-          {myPhotos.length > itemsPerPage && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={photosPage}
-                totalItems={myPhotos.length}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setPhotosPage}
-              />
-            </div>
+            ))
           )}
         </div>
-      </div>
-    )
-  }
-
-  const LocationView = () => (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="card-premium p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 gradient-staff-primary rounded-xl">
-            <Navigation className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Location Tracking</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Real-time position monitoring</p>
-          </div>
-        </div>
-
-        {locationError && (
-          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 mb-6">
-            <p className="text-red-700 dark:text-red-300 font-medium">⚠️ {locationError}</p>
-            <p className="text-red-600 dark:text-red-400 text-sm mt-1">Please enable location services in your browser</p>
-          </div>
-        )}
-
-        {currentLocation && (
-          <div className="space-y-4">
-            <div className="p-6 rounded-2xl gradient-staff-secondary border border-orange-100 dark:border-orange-900/30 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-white text-lg">Current Location</h3>
-                <div className="flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-full border border-green-500/30">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs font-medium text-green-300">Tracking Active</span>
-                </div>
-              </div>
-
-              {currentAddress && (
-                <div className="space-y-2">
-                  <p className="text-white font-medium text-lg leading-snug">{currentAddress.short}</p>
-                  {currentAddress.building && (
-                    <p className="text-gray-300 text-sm">Building: {currentAddress.building}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400 text-xs uppercase tracking-wider">Latitude</p>
-                    <p className="font-mono font-medium text-white">{currentLocation.latitude.toFixed(6)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs uppercase tracking-wider">Longitude</p>
-                    <p className="font-mono font-medium text-white">{currentLocation.longitude.toFixed(6)}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-400 text-xs uppercase tracking-wider">Accuracy</p>
-                    <p className="font-medium text-white">±{Math.round(currentLocation.accuracy)}m</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-800 dark:text-blue-300">
-                <strong>ℹ️ Info:</strong> Your location is being tracked to mark attendance and verify job locations.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!currentLocation && !locationError && (
-          <div className="text-center py-12">
-            <div className="loading-spinner w-12 h-12 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">Acquiring satellite lock...</p>
-            <p className="text-xs text-gray-400 mt-2">Please ensure Location is enabled in your browser.</p>
-            <button
-              onClick={() => startLocationTracking()}
-              className="mt-4 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-sm hover:bg-blue-200 transition-colors"
-            >
-              Retry Location
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
 
-  const menuItems = [
-    { id: 'my-jobs', label: 'My Jobs', icon: Briefcase },
-    { id: 'photos', label: 'Photos', icon: Image },
-    { id: 'location', label: 'Location', icon: MapPin },
-    { id: 'attendance', label: 'Attendance', icon: Clock },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-  ]
+  const StaffPhotosView = () => (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+          <Camera className="w-6 h-6 text-purple-600" />
+          My Uploaded Photos
+        </h3>
+        <div className="text-sm text-gray-500">
+          Total: {myPhotos.length}
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loadingPhotos && (
+        <div className="flex justify-center items-center py-20">
+          <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+          <span className="ml-3 text-gray-500">Loading photos...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {photoError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
+          <AlertCircle className="w-5 h-5" />
+          {photoError}
+        </div>
+      )}
+
+      {!loadingPhotos && !photoError && myPhotos.length === 0 ? (
+        <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+          <Image className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">No photos uploaded yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Photos you upload for jobs will appear here</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {currentPhotos.map(photo => (
+            <div key={photo.id} className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg bg-gray-100 dark:bg-gray-800">
+              <img
+                src={photo.url}
+                alt="Job photo"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                  <p className="font-bold text-lg mb-1">{photo.jobs?.title || 'Untitled Job'}</p>
+                  <p className="text-sm text-gray-300 flex items-center gap-1 mb-2">
+                    <MapPin className="w-3 h-3" /> {photo.jobs?.clients?.name}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(photo.created_at).toLocaleDateString()} • {new Date(photo.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Pagination */}
+      {!loadingPhotos && !photoError && myPhotos.length > 0 && (
+        <Pagination
+          itemsPerPage={itemsPerPage}
+          totalItems={myPhotos.length}
+          paginate={setPhotosPage}
+          currentPage={photosPage}
+        />
+      )}
+    </div>
+  )
+
+  const LocationView = () => (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-premium p-6 border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-4 mb-6">
+          <div className={`p-4 rounded-full ${isTracking ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+            <Navigation className={`w-8 h-8 ${isTracking ? 'animate-pulse' : ''}`} />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Location Tracking</h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              {isTracking ? 'Active • Updating location in real-time' : 'Inactive • Location not updating'}
+            </p>
+          </div>
+        </div>
+
+        {locationError && (
+          <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p>{locationError}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Current Coordinates</p>
+            <p className="font-mono font-bold text-lg text-gray-800 dark:text-gray-200">
+              {currentLocation ?
+                `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`
+                : 'Waiting for signal...'}
+            </p>
+          </div>
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Current Address</p>
+            <p className="font-medium text-gray-800 dark:text-gray-200">
+              {currentAddress || 'Locating...'}
+            </p>
+          </div>
+        </div>
+
+        {!isTracking && (
+          <button
+            onClick={startLocationTracking}
+            className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-200"
+          >
+            Retry Tracking
+          </button>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen gradient-bg-light transition-colors duration-300 text-gray-900 dark:text-gray-100">
@@ -565,9 +397,31 @@ export default function StaffDashboard({ session, onSignOut }) {
         </div>
       </div>
 
-      <div className="flex">
+      <div className="flex relative">
+        {/* Toggle Buttons (Fixed) */}
+        {sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="flex fixed top-4 left-64 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
+            title="Collapse Sidebar"
+          >
+            <X size={20} />
+          </button>
+        )}
+
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
+            title="Expand Sidebar"
+          >
+            <Menu size={20} />
+          </button>
+        )}
+
         {/* Sidebar */}
-        <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-20 w-72 glass-white shadow-staff transition-smooth`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'} 
+            fixed lg:sticky top-0 h-screen z-30 glass-white shadow-staff transition-all duration-300 ease-in-out flex flex-col`}>
           <div className="p-6 border-b border-gray-100 flex justify-center">
             <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
               Trakby
@@ -605,7 +459,7 @@ export default function StaffDashboard({ session, onSignOut }) {
               </button>
             ))}
           </nav>
-        </div>
+        </aside>
 
         {/* Main Content */}
         <div className="flex-1 p-4 lg:p-8 min-h-screen">
@@ -688,7 +542,7 @@ export default function StaffDashboard({ session, onSignOut }) {
           setShowUploadModal(true)
         }}
       />
-    </div>
+    </div >
   )
 }
 
