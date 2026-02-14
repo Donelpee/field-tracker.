@@ -12,16 +12,6 @@ export default function Sidebar({
     return (
         <>
             {/* Toggle Buttons (Fixed) */}
-            {sidebarOpen && (
-                <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="flex fixed top-4 left-72 w-10 h-10 !bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
-                    title="Collapse Sidebar"
-                >
-                    <X size={20} />
-                </button>
-            )}
-
             {!sidebarOpen && (
                 <button
                     onClick={() => setSidebarOpen(true)}
@@ -35,8 +25,18 @@ export default function Sidebar({
             <aside className={`
                 fixed lg:sticky top-0 h-screen z-30 flex-shrink-0
                 glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col
-                ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
+                ${sidebarOpen ? 'translate-x-0 w-72 overflow-visible' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
             `}>
+                {/* Collapse Button (Absolute Positioned) */}
+                {sidebarOpen && (
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="absolute top-4 -right-12 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-50 hidden lg:flex transition-transform hover:scale-110"
+                        title="Collapse Sidebar"
+                    >
+                        <X size={20} />
+                    </button>
+                )}
                 <div className="p-6 border-b border-gray-100 flex-shrink-0 flex justify-center">
                     <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hidden lg:block">
                         Trakby
