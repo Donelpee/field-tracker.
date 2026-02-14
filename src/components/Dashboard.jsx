@@ -856,7 +856,7 @@ export default function Dashboard({ session, onSignOut }) {
                 {sidebarOpen && (
                     <button
                         onClick={() => setSidebarOpen(false)}
-                        className="flex fixed top-4 left-64 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
+                        className="flex fixed top-4 left-64 w-10 h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
                         title="Collapse Sidebar"
                     >
                         <X size={20} />
@@ -866,7 +866,7 @@ export default function Dashboard({ session, onSignOut }) {
                 {!sidebarOpen && (
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="flex fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
+                        className="flex fixed top-4 left-4 w-10 h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
                         title="Expand Sidebar"
                     >
                         <Menu size={20} />
@@ -875,14 +875,11 @@ export default function Dashboard({ session, onSignOut }) {
 
                 {/* Sidebar */}
                 <aside className={`
-                    fixed lg:sticky top-0 h-screen z-30
+                    fixed lg:sticky top-0 h-screen z-30 flex-shrink-0
                     glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col
                     ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
                 `}>
-                    {/* DEBUG BANNER (Temporary) */}
-                    <div className="lg:hidden p-2 bg-yellow-100 text-xs break-all">
-                        Role: {userProfile?.role || 'null'} | Jobs: {jobs.length} | Staff: {staff.length}
-                    </div>
+
                     <div className="p-6 border-b border-gray-100 flex-shrink-0 flex justify-center">
                         <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hidden lg:block">
                             Trakby
