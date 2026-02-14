@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { MapPin, Briefcase, Camera, LogOut, Clock, CheckCircle, Navigation, Menu, X, Bell, User, TrendingUp, Zap, Target, Image, RefreshCw, AlertCircle } from 'lucide-react'
 import UploadPhotoModal from './UploadPhotoModal'
@@ -10,10 +10,11 @@ import { ThemeToggle } from '../lib/ThemeContext'
 import { useToast } from '../lib/ToastContext'
 import JobDetailsModal from './JobDetailsModal'
 import Pagination from './Pagination'
+import DashboardLayout from './layout/DashboardLayout'
 
 export default function StaffDashboard({ session, onSignOut }) {
   const [currentView, setCurrentView] = useState('my-jobs')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Sidebar state removed as it is handled by DashboardLayout
   const [userProfile, setUserProfile] = useState(null)
   const [myJobs, setMyJobs] = useState([])
   const [myPhotos, setMyPhotos] = useState([])
@@ -105,7 +106,6 @@ export default function StaffDashboard({ session, onSignOut }) {
   }, [])
 
   const fetchTodayAttendance = async () => {
-    // Basic implementation - can be expanded
     const today = new Date().toISOString().split('T')[0]
     const { data } = await supabase
       .from('attendance')
@@ -269,7 +269,6 @@ export default function StaffDashboard({ session, onSignOut }) {
         </div>
       </div>
 
-      {/* Loading State */}
       {loadingPhotos && (
         <div className="flex justify-center items-center py-20">
           <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
@@ -277,7 +276,6 @@ export default function StaffDashboard({ session, onSignOut }) {
         </div>
       )}
 
-      {/* Error State */}
       {photoError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5" />
@@ -316,7 +314,6 @@ export default function StaffDashboard({ session, onSignOut }) {
           ))}
         </div>
       )}
-      {/* Pagination */}
       {!loadingPhotos && !photoError && myPhotos.length > 0 && (
         <Pagination
           itemsPerPage={itemsPerPage}
@@ -380,137 +377,55 @@ export default function StaffDashboard({ session, onSignOut }) {
   )
 
   return (
-    <div className="min-h-screen gradient-bg-light transition-colors duration-300 text-gray-900 dark:text-gray-100">
-      {/* Mobile Header */}
-      <div className="lg:hidden glass-white shadow-lg p-4 flex items-center justify-between sticky top-0 z-20 safe-top">
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-icon">
-          {sidebarOpen ? <X className="icon-fixed" /> : <Menu className="icon-fixed" />}
-        </button>
-        <div className="h-16 flex items-center">
-          <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-            Trakby
-          </h1>
+    <DashboardLayout
+      currentView={currentView}
+      setCurrentView={setCurrentView}
+      menuItems={menuItems}
+      userProfile={userProfile}
+      onSignOut={onSignOut}
+    >
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
+            {menuItems.find(item => item.id === currentView)?.label || 'My Jobs'}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Welcome, <span className="font-semibold text-gradient-staff">{userProfile?.full_name || 'Staff'}</span>
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <NotificationBell userId={session.user.id} />
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:block">
+            <NotificationBell userId={session.user.id} />
+          </div>
+          <div className="hidden lg:block">
+            <ThemeToggle />
+          </div>
+          <button
+            onClick={onSignOut}
+            className="group relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white transition-smooth shadow-lg hover:shadow-xl"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 transition-smooth group-hover:scale-105"></div>
+            <div className="relative flex items-center justify-center gap-2">
+              <LogOut className="icon-fixed transform group-hover:-translate-x-1 transition-smooth" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </div>
+          </button>
         </div>
       </div>
 
-      <div className="flex relative">
-        {/* Toggle Buttons (Fixed) */}
-        {sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="flex fixed top-4 left-64 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
-            title="Collapse Sidebar"
-          >
-            <X size={20} />
-          </button>
-        )}
-
-        {!sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="flex fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
-            title="Expand Sidebar"
-          >
-            <Menu size={20} />
-          </button>
-        )}
-
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'} 
-            fixed lg:sticky top-0 h-screen z-30 glass-white shadow-staff transition-all duration-300 ease-in-out flex flex-col`}>
-          <div className="p-6 border-b border-gray-100 flex justify-center">
-            <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-              Trakby
-            </h1>
-          </div>
-
-          {/* User Profile */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center gap-3 p-3 rounded-xl gradient-staff-secondary">
-              <div className="avatar-fixed rounded-full gradient-staff-primary flex items-center justify-center text-white font-bold shadow-lg">
-                {userProfile?.full_name?.split(' ').map(n => n[0]).join('') || <User className="w-5 h-5" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{userProfile?.full_name || 'Staff Member'}</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Staff Portal</p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="px-4 py-6 space-y-2">
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setCurrentView(item.id)
-                  setSidebarOpen(false)
-                }}
-                className={`sidebar-item w-full ${currentView === item.id
-                  ? 'gradient-staff-primary text-white shadow-lg'
-                  : 'text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-orange-50 hover:to-yellow-50 dark:hover:from-gray-800 dark:hover:to-gray-800'
-                  }`}
-              >
-                <item.icon className="icon-fixed" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <div className="flex-1 p-4 lg:p-8 min-h-screen">
-          <div className="max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
-                  {menuItems.find(item => item.id === currentView)?.label || 'My Jobs'}
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Welcome, <span className="font-semibold text-gradient-staff">{userProfile?.full_name || 'Staff'}</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="hidden lg:block">
-                  <NotificationBell userId={session.user.id} />
-                </div>
-                <div className="hidden lg:block">
-                  <ThemeToggle />
-                </div>
-                <button
-                  onClick={onSignOut}
-                  className="group relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white transition-smooth shadow-lg hover:shadow-xl"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 transition-smooth group-hover:scale-105"></div>
-                  <div className="relative flex items-center justify-center gap-2">
-                    <LogOut className="icon-fixed transform group-hover:-translate-x-1 transition-smooth" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            {currentView === 'my-jobs' && <MyJobsView />}
-            {currentView === 'photos' && <StaffPhotosView />}
-            {currentView === 'location' && <LocationView />}
-            {currentView === 'attendance' && (
-              <AttendanceWidget
-                userId={session.user.id}
-                currentLocation={currentLocation}
-                currentAddress={currentAddress}
-                locationError={locationError}
-                onRetryLocation={startLocationTracking}
-              />
-            )}
-            {currentView === 'notifications' && <NotificationsPage userId={session.user.id} />}
-          </div>
-        </div>
-      </div>
+      {currentView === 'my-jobs' && <MyJobsView />}
+      {currentView === 'photos' && <StaffPhotosView />}
+      {currentView === 'location' && <LocationView />}
+      {currentView === 'attendance' && (
+        <AttendanceWidget
+          userId={session.user.id}
+          currentLocation={currentLocation}
+          currentAddress={currentAddress}
+          locationError={locationError}
+          onRetryLocation={startLocationTracking}
+        />
+      )}
+      {currentView === 'notifications' && <NotificationsPage userId={session.user.id} />}
 
       <UploadPhotoModal
         isOpen={showUploadModal}
@@ -542,7 +457,7 @@ export default function StaffDashboard({ session, onSignOut }) {
           setShowUploadModal(true)
         }}
       />
-    </div >
+    </DashboardLayout>
   )
 }
 
