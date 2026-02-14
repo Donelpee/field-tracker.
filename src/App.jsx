@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ThemeProvider } from './lib/ThemeContext'
+import { ToastProvider } from './lib/ToastContext'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Dashboard from './components/Dashboard'
@@ -65,7 +66,9 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Dashboard session={session} onSignOut={handleSignOut} />
+      <ToastProvider>
+        <Dashboard session={session} onSignOut={handleSignOut} />
+      </ToastProvider>
     </ThemeProvider>
   )
 }

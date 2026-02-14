@@ -88,7 +88,6 @@ export default function Dashboard({ session, onSignOut }) {
         }
 
         if (data) {
-            console.log('User profile loaded:', data)
             setUserProfile(data)
         }
         setLoading(false)
@@ -167,7 +166,6 @@ export default function Dashboard({ session, onSignOut }) {
     }
 
     const fetchJobs = async () => {
-        console.log('Fetching jobs...')
         const { data, error } = await supabase
             .from('jobs')
             .select(`
@@ -178,7 +176,6 @@ export default function Dashboard({ session, onSignOut }) {
 
         if (error) console.error('Error fetching jobs:', error)
         if (data) {
-            console.log('Jobs fetched:', data.length)
             setJobs(data)
         }
     }
@@ -841,9 +838,23 @@ export default function Dashboard({ session, onSignOut }) {
                 </div>
             </div>
 
-            <div className="flex">
+            <div className="flex relative">
                 {/* Sidebar */}
-                <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-20 w-72 glass-white shadow-premium transition-smooth flex flex-col`}>
+                <aside className={`
+                    fixed lg:sticky top-0 h-screen z-30
+                    glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col
+                    ${sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
+                `}>
+                    {/* Desktop Collapse Arrow (Visible only when open) */}
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="hidden lg:flex absolute -right-3 top-24 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-md hover:bg-gray-50 text-gray-500 z-50 transform hover:scale-110 transition-transform"
+                        title="Collapse Sidebar"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m15 18-6-6 6-6" />
+                        </svg>
+                    </button>
 
                     {/* DEBUG BANNER (Temporary) */}
                     <div className="lg:hidden p-2 bg-yellow-100 text-xs break-all">
@@ -874,7 +885,8 @@ export default function Dashboard({ session, onSignOut }) {
                                 key={item.id}
                                 onClick={() => {
                                     setCurrentView(item.id)
-                                    setSidebarOpen(false)
+                                    // Don't auto-close on desktop, only mobile
+                                    if (window.innerWidth < 1024) setSidebarOpen(false)
                                 }}
                                 className={`sidebar-item w-full ${currentView === item.id ? 'active' : ''}`}
                             >
@@ -883,82 +895,95 @@ export default function Dashboard({ session, onSignOut }) {
                             </button>
                         ))}
                     </nav>
-                </div>
+                </aside>
 
                 {/* Main Content */}
                 <div className="flex-1 p-4 lg:p-8 min-h-screen">
                     <div className="max-w-7xl mx-auto">
                         {/* Header */}
                         <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
-                                    {menuItems.find(item => item.id === currentView)?.label || 'Dashboard'}
-                                </h2>
-                                <p className="text-gray-600 dark:text-gray-400">Welcome back, <span className="font-semibold text-gradient-primary">{userProfile?.full_name}</span></p>
-                            </div>
                             <div className="flex items-center gap-4">
-                                <div className="hidden lg:block">
-                                    <NotificationBell userId={session.user.id} />
+                                {/* Desktop Expand Arrow (Visible only when sidebar closed) */}
+                                {!sidebarOpen && (
+                                    <button
+                                        onClick={() => setSidebarOpen(true)}
+                                        className="hidden lg:flex p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                                        title="Expand Sidebar"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="m9 18 6-6-6-6" />
+                                        </svg>
+                                    </button>
+                                )}
+                                <div>
+                                    <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
+                                        {menuItems.find(item => item.id === currentView)?.label || 'Dashboard'}
+                                    </h2>
+                                    <p className="text-gray-600 dark:text-gray-400">Welcome back, <span className="font-semibold text-gradient-primary">{userProfile?.full_name}</span></p>
                                 </div>
-                                <ThemeToggle />
-                                <button
-                                    onClick={onSignOut}
-                                    className="group relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white transition-smooth shadow-lg hover:shadow-xl"
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-600 transition-smooth group-hover:scale-105"></div>
-                                    <div className="relative flex items-center justify-center gap-2">
-                                        <LogOut className="icon-fixed transform group-hover:-translate-x-1 transition-smooth" />
-                                        <span className="hidden sm:inline">Sign Out</span>
+                                <div className="flex items-center gap-4">
+                                    <div className="hidden lg:block">
+                                        <NotificationBell userId={session.user.id} />
                                     </div>
-                                </button>
+                                    <ThemeToggle />
+                                    <button
+                                        onClick={onSignOut}
+                                        className="group relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white transition-smooth shadow-lg hover:shadow-xl"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-600 transition-smooth group-hover:scale-105"></div>
+                                        <div className="relative flex items-center justify-center gap-2">
+                                            <LogOut className="icon-fixed transform group-hover:-translate-x-1 transition-smooth" />
+                                            <span className="hidden sm:inline">Sign Out</span>
+                                        </div>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Content */}
-                        {currentView === 'dashboard' && <DashboardView />}
-                        {currentView === 'performance' && <PerformanceMetrics />}
-                        {currentView === 'staff' && <StaffView />}
-                        {currentView === 'jobs' && <JobsView />}
-                        {currentView === 'photos' && <PhotosView />}
-                        {currentView === 'locations' && <StaffLocationHistory />}
-                        {currentView === 'attendance' && <AttendanceReport onSignOut={onSignOut} />}
-                        {currentView === 'login-activity' && <LoginActivity />}
-                        {currentView === 'notifications' && <NotificationsPage userId={session.user.id} />}
-                        {currentView === 'settings' && <Settings />}
-                        {currentView === 'analytics' && <JobInsights />}
+                            {/* Content */}
+                            {currentView === 'dashboard' && <DashboardView />}
+                            {currentView === 'performance' && <PerformanceMetrics />}
+                            {currentView === 'staff' && <StaffView />}
+                            {currentView === 'jobs' && <JobsView />}
+                            {currentView === 'photos' && <PhotosView />}
+                            {currentView === 'locations' && <StaffLocationHistory />}
+                            {currentView === 'attendance' && <AttendanceReport onSignOut={onSignOut} />}
+                            {currentView === 'login-activity' && <LoginActivity />}
+                            {currentView === 'notifications' && <NotificationsPage userId={session.user.id} />}
+                            {currentView === 'settings' && <Settings />}
+                            {currentView === 'analytics' && <JobInsights />}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <CreateJobModal
-                isOpen={showCreateJobModal}
-                onClose={() => setShowCreateJobModal(false)}
-                onJobCreated={() => {
-                    fetchJobs()
-                    setShowCreateJobModal(false)
-                }}
-                staff={staff}
-            />
-        </div>
-    )
+                <CreateJobModal
+                    isOpen={showCreateJobModal}
+                    onClose={() => setShowCreateJobModal(false)}
+                    onJobCreated={() => {
+                        fetchJobs()
+                        setShowCreateJobModal(false)
+                    }}
+                    staff={staff}
+                />
+            </div >
+            )
 }
 
-const StatCard = ({ icon: Icon, label, value, gradient }) => (
-    <div className="card-premium card-glow group overflow-hidden relative animate-scaleIn">
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth">
-            <div className={`absolute inset-0 ${gradient} opacity-5`}></div>
-        </div>
-        <div className="relative p-6">
-            <div className="flex items-center justify-between">
-                <div className="flex-1">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-2">{label}</p>
-                    <p className="text-4xl font-bold text-gray-800 dark:text-white">{value}</p>
+            const StatCard = ({icon: Icon, label, value, gradient }) => (
+            <div className="card-premium card-glow group overflow-hidden relative animate-scaleIn">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth">
+                    <div className={`absolute inset-0 ${gradient} opacity-5`}></div>
                 </div>
-                <div className={`${gradient} p-4 rounded-2xl shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-smooth`}>
-                    <Icon className="w-8 h-8 text-white" />
+                <div className="relative p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-2">{label}</p>
+                            <p className="text-4xl font-bold text-gray-800 dark:text-white">{value}</p>
+                        </div>
+                        <div className={`${gradient} p-4 rounded-2xl shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-smooth`}>
+                            <Icon className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <div className={`mt-4 h-1 rounded-full ${gradient} opacity-20`}></div>
                 </div>
             </div>
-            <div className={`mt-4 h-1 rounded-full ${gradient} opacity-20`}></div>
-        </div>
-    </div>
-)
+            )
