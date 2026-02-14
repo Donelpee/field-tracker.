@@ -964,26 +964,27 @@ export default function Dashboard({ session, onSignOut }) {
                     }}
                     staff={staff}
                 />
-            </div >
-            )
+            </div>
+        </div>
+    )
 }
 
-            const StatCard = ({icon: Icon, label, value, gradient }) => (
-            <div className="card-premium card-glow group overflow-hidden relative animate-scaleIn">
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth">
-                    <div className={`absolute inset-0 ${gradient} opacity-5`}></div>
+const StatCard = ({ icon: Icon, label, value, gradient }) => (
+    <div className="card-premium card-glow group overflow-hidden relative animate-scaleIn">
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-smooth">
+            <div className={`absolute inset-0 ${gradient} opacity-5`}></div>
+        </div>
+        <div className="relative p-6">
+            <div className="flex items-center justify-between">
+                <div className="flex-1">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-2">{label}</p>
+                    <p className="text-4xl font-bold text-gray-800 dark:text-white">{value}</p>
                 </div>
-                <div className="relative p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-2">{label}</p>
-                            <p className="text-4xl font-bold text-gray-800 dark:text-white">{value}</p>
-                        </div>
-                        <div className={`${gradient} p-4 rounded-2xl shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-smooth`}>
-                            <Icon className="w-8 h-8 text-white" />
-                        </div>
-                    </div>
-                    <div className={`mt-4 h-1 rounded-full ${gradient} opacity-20`}></div>
+                <div className={`${gradient} p-4 rounded-2xl shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-smooth`}>
+                    <Icon className="w-8 h-8 text-white" />
                 </div>
             </div>
-            )
+            <div className={`mt-4 h-1 rounded-full ${gradient} opacity-20`}></div>
+        </div>
+    </div>
+)
