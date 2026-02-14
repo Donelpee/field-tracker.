@@ -15,7 +15,7 @@ export default function Sidebar({
             {sidebarOpen && (
                 <button
                     onClick={() => setSidebarOpen(false)}
-                    className="flex fixed top-4 left-64 w-10 h-10 !bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
+                    className="flex fixed top-4 left-72 w-10 h-10 !bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110 ml-4 hidden lg:flex"
                     title="Collapse Sidebar"
                 >
                     <X size={20} />
