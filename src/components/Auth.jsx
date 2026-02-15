@@ -90,15 +90,18 @@ export default function Auth({ onAuthSuccess }) {
 
         if (signInError) throw signInError
 
-        // Check if device is locked
+        // Check if device is locked (STAFF ONLY)
         const deviceId = await getDeviceId()
         const { data: existingDevice } = await supabase
           .from('profiles')
-          .select('device_id')
+          .select('device_id, role')
           .eq('id', authData.user.id)
           .single()
 
-        if (existingDevice?.device_id && existingDevice.device_id !== deviceId) {
+        // Only enforce device lock for Staff role
+        const isStaffRole = existingDevice?.role?.toLowerCase() === 'staff'
+
+        if (isStaffRole && existingDevice?.device_id && existingDevice.device_id !== deviceId) {
           await supabase.auth.signOut()
           await supabase.from('login_attempts').insert({
             user_id: authData.user.id,
@@ -109,7 +112,7 @@ export default function Auth({ onAuthSuccess }) {
           throw new Error('This account is locked to another device. Please contact your administrator.')
         }
 
-        if (!existingDevice?.device_id) {
+        if (isStaffRole && !existingDevice?.device_id) {
           await supabase.from('profiles').update({ device_id: deviceId }).eq('id', authData.user.id)
         }
 
