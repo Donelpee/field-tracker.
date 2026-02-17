@@ -361,14 +361,17 @@ export default function AttendanceReport() {
               </table>
             </div>
 
-            <Pagination
-              currentPage={currentPage}
-              totalItems={attendance.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              showWhenSinglePage
-            />
           </>
+        )}
+
+        {!loading && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={attendance.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            showWhenSinglePage
+          />
         )}
       </div>
 

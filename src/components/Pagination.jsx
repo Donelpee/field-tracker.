@@ -8,9 +8,11 @@ export default function Pagination({
     onPageChange,
     showWhenSinglePage = false
 }) {
-    const totalPages = Math.ceil(totalItems / itemsPerPage)
+    const computedTotalPages = Math.ceil(totalItems / itemsPerPage)
+    const totalPages = Math.max(1, computedTotalPages)
+    const hasNoItems = totalItems === 0
 
-    if (totalPages <= 1 && !showWhenSinglePage) return null
+    if (computedTotalPages <= 1 && !showWhenSinglePage) return null
 
     const getPageNumbers = () => {
         const pages = []
@@ -64,10 +66,10 @@ export default function Pagination({
                 <div>
                     <p className="text-sm text-gray-700">
                         Showing{' '}
-                        <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
+                        <span className="font-medium">{hasNoItems ? 0 : ((currentPage - 1) * itemsPerPage + 1)}</span>
                         {' '}-{' '}
                         <span className="font-medium">
-                            {Math.min(currentPage * itemsPerPage, totalItems)}
+                            {hasNoItems ? 0 : Math.min(currentPage * itemsPerPage, totalItems)}
                         </span>
                         {' '}of{' '}
                         <span className="font-medium">{totalItems}</span>
