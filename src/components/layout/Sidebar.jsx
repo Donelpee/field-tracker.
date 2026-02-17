@@ -1,5 +1,4 @@
 import React from 'react'
-import { Menu, X } from 'lucide-react'
 
 export default function Sidebar({
     sidebarOpen,
@@ -11,29 +10,6 @@ export default function Sidebar({
 }) {
     return (
         <>
-            {/* Toggle Buttons (Fixed) */}
-            {!sidebarOpen && (
-                <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="fixed top-4 left-4 w-10 h-10 !bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110"
-                    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
-                    title="Expand Sidebar"
-                >
-                    <Menu size={20} />
-                </button>
-            )}
-
-            {sidebarOpen && (
-                <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110"
-                    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
-                    title="Collapse Sidebar"
-                >
-                    <X size={20} />
-                </button>
-            )}
-
             <aside className={`
                 fixed lg:sticky top-0 h-screen z-30 flex-shrink-0
                 glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col

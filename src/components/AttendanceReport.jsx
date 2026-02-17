@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useToast } from '../lib/ToastContext'
 import { Calendar, User, Clock, Download, Search, Eye, Filter } from 'lucide-react'
 import AttendanceDetailModal from './AttendanceDetailModal'
-import Pagination from './Pagination'
 
 export default function AttendanceReport() {
   const { showToast } = useToast()
@@ -131,6 +130,15 @@ export default function AttendanceReport() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+
+  const totalPages = Math.max(1, Math.ceil(attendance.length / itemsPerPage))
+  const startItem = attendance.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
+  const endItem = attendance.length === 0 ? 0 : Math.min(currentPage * itemsPerPage, attendance.length)
+
+  const handlePageChange = (nextPage) => {
+    const clampedPage = Math.min(totalPages, Math.max(1, nextPage))
+    setCurrentPage(clampedPage)
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -365,13 +373,30 @@ export default function AttendanceReport() {
         )}
 
         {!loading && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={attendance.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            showWhenSinglePage
-          />
+          <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{startItem}</span> - <span className="font-medium">{endItem}</span> of <span className="font-medium">{attendance.length}</span> results
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-600 min-w-[90px] text-center">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
