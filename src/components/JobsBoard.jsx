@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../lib/ToastContext'
 import { Search, Plus, Edit, Clock, Users as UsersIcon, Briefcase, CheckCircle, XCircle, AlertCircle, MapPin, Calendar } from 'lucide-react'
 import CreateJobModal from './CreateJobModal'
 import EditJobModal from './EditJobModal'
 
-export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) {
+export default function JobsBoard({ userProfile, permissions = [] }) {
+  const { showToast } = useToast()
   const [jobs, setJobs] = useState([])
   const [filteredJobs, setFilteredJobs] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -13,31 +15,35 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchJobs()
-  }, [])
-
-  useEffect(() => {
-    filterJobs()
-  }, [jobs, searchQuery, selectedCategory])
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('jobs')
-      .select(`
-        *,
-        clients (name, address),
-        profiles (full_name)
-      `)
-      .order('created_at', { ascending: false })
+    setError('')
 
-    if (data) setJobs(data)
-    setLoading(false)
-  }
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          clients (name, address),
+          profiles (full_name)
+        `)
+        .order('created_at', { ascending: false })
 
-  const filterJobs = () => {
+      if (fetchError) throw fetchError
+      setJobs(data || [])
+    } catch (err) {
+      console.error('Failed to fetch jobs', err)
+      setJobs([])
+      setError('Could not load jobs. Please retry.')
+      showToast('Could not load jobs. Please retry.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  const filterJobs = useCallback(() => {
     let filtered = [...jobs]
 
     if (selectedCategory !== 'all') {
@@ -59,14 +65,22 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
     }
 
     setFilteredJobs(filtered)
-  }
+  }, [jobs, searchQuery, selectedCategory])
+
+  useEffect(() => {
+    fetchJobs()
+  }, [fetchJobs])
+
+  useEffect(() => {
+    filterJobs()
+  }, [filterJobs])
 
   const getCategoryCounts = () => {
     return {
       all: jobs.length,
       unassigned: jobs.filter(j => !j.assigned_to).length,
       assigned: jobs.filter(j => j.assigned_to && j.status === 'pending').length,
-      'in-progress': jobs.filter(j => j.status === 'in-progress').length,
+      in_progress: jobs.filter(j => j.status === 'in_progress').length,
       pending: jobs.filter(j => j.status === 'pending').length,
       completed: jobs.filter(j => j.status === 'completed').length,
       cancelled: jobs.filter(j => j.status === 'cancelled').length,
@@ -85,7 +99,7 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
     { id: 'unassigned', label: 'Unassigned', icon: AlertCircle, color: 'bg-red-100 text-red-800', count: counts.unassigned },
     { id: 'assigned', label: 'Assigned', icon: UsersIcon, color: 'bg-purple-100 text-purple-800', count: counts.assigned },
     { id: 'pending', label: 'Pending', icon: Clock, color: 'bg-orange-100 text-orange-800', count: counts.pending },
-    { id: 'in-progress', label: 'In Progress', icon: Briefcase, color: 'bg-blue-100 text-blue-800', count: counts['in-progress'] },
+    { id: 'in_progress', label: 'In Progress', icon: Briefcase, color: 'bg-blue-100 text-blue-800', count: counts.in_progress },
     { id: 'completed', label: 'Completed', icon: CheckCircle, color: 'bg-green-100 text-green-800', count: counts.completed },
     { id: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-gray-100 text-gray-800', count: counts.cancelled },
   ]
@@ -155,6 +169,18 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
 
       {/* Jobs Grid */}
       <div className="space-y-4">
+        {error && (
+          <div className="card-premium p-4 border border-red-100 bg-red-50 flex items-center justify-between gap-3">
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              onClick={fetchJobs}
+              className="btn-secondary py-1.5 px-3 text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="p-12 text-center card-premium">
             <div className="loading-spinner w-12 h-12 mx-auto"></div>
@@ -178,7 +204,7 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
                 style={{
                   animationDelay: `${index * 50}ms`,
                   borderLeftColor: job.status === 'completed' ? '#10B981' :
-                    job.status === 'in-progress' ? '#3B82F6' :
+                    job.status === 'in_progress' ? '#3B82F6' :
                       job.status === 'cancelled' ? '#EF4444' : '#F59E0B'
                 }}
               >
@@ -186,7 +212,7 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
                   <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-smooth line-clamp-1">
                     {job.title}
                   </h3>
-                  <span className={`badge ${job.status === 'in-progress' ? 'badge-info' :
+                  <span className={`badge ${job.status === 'in_progress' ? 'badge-info' :
                     job.status === 'completed' ? 'badge-success' :
                       job.status === 'cancelled' ? 'badge-error' :
                         'badge-warning'
@@ -242,8 +268,9 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onJobCreated={() => {
-          fetchJobs()
+          void fetchJobs()
           setShowCreateModal(false)
+          showToast('Job created successfully.', 'success')
         }}
       />
 
@@ -256,9 +283,10 @@ export default function JobsBoard({ userProfile, onSignOut, permissions = [] }) 
         }}
         job={selectedJob}
         onJobUpdated={() => {
-          fetchJobs()
+          void fetchJobs()
           setShowEditModal(false)
           setSelectedJob(null)
+          showToast('Job updated successfully.', 'success')
         }}
       />
     </div>

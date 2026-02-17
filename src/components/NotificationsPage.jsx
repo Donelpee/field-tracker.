@@ -1,11 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { Bell, Check, CheckCheck, Trash2, Briefcase, MapPin, Camera, Award } from 'lucide-react'
+import { useToast } from '../lib/ToastContext'
+import { Bell, Check, CheckCheck, Trash2, Briefcase, MapPin, Camera, Award, LogOut } from 'lucide-react'
 
 export default function NotificationsPage({ userId }) {
+  const { showToast } = useToast()
   const [notifications, setNotifications] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+      setNotifications(data || [])
+    } catch (err) {
+      console.error('Failed to fetch notifications', err)
+      setNotifications([])
+      setError('Could not load notifications. Please retry.')
+      showToast('Could not load notifications. Please retry.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast, userId])
 
   useEffect(() => {
     fetchNotifications()
@@ -13,72 +39,96 @@ export default function NotificationsPage({ userId }) {
     const channel = supabase
       .channel('notifications_page')
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        setNotifications(prev => [payload.new, ...prev])
+      }, () => {
+        fetchNotifications()
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userId])
-
-  const fetchNotifications = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (data) setNotifications(data)
-    setLoading(false)
-  }
+  }, [fetchNotifications, userId])
 
   const markAsRead = async (notificationId) => {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notificationId)
+    try {
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
 
-    setNotifications(prev =>
-      prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-    )
+      if (updateError) throw updateError
+
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      )
+      showToast('Notification marked as read.', 'success')
+    } catch (err) {
+      console.error('Failed to mark notification as read', err)
+      setError('Could not update notification. Please try again.')
+      showToast('Could not update notification. Please try again.', 'error')
+    }
   }
 
   const markAllAsRead = async () => {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false)
+    try {
+      const { error: updateError } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false)
 
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      if (updateError) throw updateError
+
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      showToast('All notifications marked as read.', 'success')
+    } catch (err) {
+      console.error('Failed to mark all notifications as read', err)
+      setError('Could not mark all notifications as read. Please try again.')
+      showToast('Could not mark all notifications as read. Please try again.', 'error')
+    }
   }
 
   const deleteNotification = async (notificationId) => {
-    await supabase
-      .from('notifications')
-      .delete()
-      .eq('id', notificationId)
+    try {
+      const { error: deleteError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
 
-    setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      if (deleteError) throw deleteError
+
+      setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      showToast('Notification deleted.', 'success')
+    } catch (err) {
+      console.error('Failed to delete notification', err)
+      setError('Could not delete notification. Please try again.')
+      showToast('Could not delete notification. Please try again.', 'error')
+    }
   }
 
   const deleteAllRead = async () => {
     if (!confirm('Delete all read notifications?')) return
 
-    await supabase
-      .from('notifications')
-      .delete()
-      .eq('user_id', userId)
-      .eq('is_read', true)
+    try {
+      const { error: deleteError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', userId)
+        .eq('is_read', true)
 
-    setNotifications(prev => prev.filter(n => !n.is_read))
+      if (deleteError) throw deleteError
+
+      setNotifications(prev => prev.filter(n => !n.is_read))
+      showToast('Read notifications deleted.', 'success')
+    } catch (err) {
+      console.error('Failed to delete all read notifications', err)
+      setError('Could not delete read notifications. Please try again.')
+      showToast('Could not delete read notifications. Please try again.', 'error')
+    }
   }
 
   const getNotificationIcon = (type) => {
@@ -87,6 +137,8 @@ export default function NotificationsPage({ userId }) {
         return <Briefcase className="w-5 h-5 text-blue-600" />
       case 'check_in':
         return <MapPin className="w-5 h-5 text-green-600" />
+      case 'check_out':
+        return <LogOut className="w-5 h-5 text-orange-600" />
       case 'photo_uploaded':
         return <Camera className="w-5 h-5 text-purple-600" />
       case 'job_completed':
@@ -157,6 +209,18 @@ export default function NotificationsPage({ userId }) {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div className="mt-4 p-3 rounded-lg border border-red-100 bg-red-50 flex items-center justify-between gap-3">
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              onClick={fetchNotifications}
+              className="px-3 py-1.5 text-sm rounded-lg bg-white border border-red-200 text-red-700 hover:bg-red-100"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow">

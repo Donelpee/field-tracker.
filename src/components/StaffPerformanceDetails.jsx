@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { X, Calendar, MapPin, Image, MessageSquare, CheckCircle, Clock, AlertCircle, TrendingUp, Briefcase } from 'lucide-react'
 
@@ -23,13 +23,7 @@ export default function StaffPerformanceDetails({ isOpen, onClose, staffId, staf
         }
     })
 
-    useEffect(() => {
-        if (isOpen && staffId) {
-            fetchDetails()
-        }
-    }, [isOpen, staffId, timeRange])
-
-    const fetchDetails = async () => {
+    const fetchDetails = useCallback(async () => {
         setLoading(true)
         try {
             // Calculate Date Range
@@ -178,7 +172,13 @@ export default function StaffPerformanceDetails({ isOpen, onClose, staffId, staf
         } finally {
             setLoading(false)
         }
-    }
+    }, [staffId, timeRange])
+
+    useEffect(() => {
+        if (isOpen && staffId) {
+            fetchDetails()
+        }
+    }, [isOpen, staffId, timeRange, fetchDetails])
 
     if (!isOpen) return null
 
@@ -412,6 +412,9 @@ const ScoreCard = ({ label, score, max, color, icon: Icon }) => {
 
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center">
+            <div className={`mb-2 ${color}`}>
+                <Icon className="w-4 h-4" />
+            </div>
             <div className="relative w-16 h-16 mb-2">
                 <svg className="w-full h-full transform -rotate-90">
                     <circle

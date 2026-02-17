@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { TrendingUp, Users, CheckCircle, Briefcase, Camera, Award, Clock } from 'lucide-react'
+import { TrendingUp, Users, Briefcase, Camera, Award } from 'lucide-react'
 import StaffPerformanceDetails from './StaffPerformanceDetails'
 
 export default function PerformanceMetrics() {
@@ -14,19 +14,13 @@ export default function PerformanceMetrics() {
         totalPhotos: 0
     })
 
-    const [error, setError] = useState(null)
     const [selectedStaffId, setSelectedStaffId] = useState(null)
     const [selectedStaffName, setSelectedStaffName] = useState('')
     const [showDetailsModal, setShowDetailsModal] = useState(false)
 
-    useEffect(() => {
-        fetchMetrics()
-    }, [timeRange])
-
-    const fetchMetrics = async () => {
+    const fetchMetrics = useCallback(async () => {
         try {
             setLoading(true)
-            setError(null)
 
             // 1. Fetch all Profiles (Staff)
             const { data: profiles, error: profileError } = await supabase
@@ -164,11 +158,14 @@ export default function PerformanceMetrics() {
 
         } catch (err) {
             console.error('Error fetching metrics:', err)
-            setError(err)
         } finally {
             setLoading(false)
         }
-    }
+    }, [timeRange])
+
+    useEffect(() => {
+        fetchMetrics()
+    }, [fetchMetrics])
 
     const handleStaffClick = (staff) => {
         setSelectedStaffId(staff.id)

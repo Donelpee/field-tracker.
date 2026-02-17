@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Edit2, Save, X, Search, Briefcase } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
@@ -15,11 +15,7 @@ export default function JobTypesManager() {
 
     const { showToast } = useToast()
 
-    useEffect(() => {
-        fetchJobTypes()
-    }, [])
-
-    const fetchJobTypes = async () => {
+    const fetchJobTypes = useCallback(async () => {
         setLoading(true)
         try {
             const { data, error } = await supabase
@@ -35,7 +31,11 @@ export default function JobTypesManager() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [showToast])
+
+    useEffect(() => {
+        fetchJobTypes()
+    }, [fetchJobTypes])
 
     const handleSave = async (e) => {
         e.preventDefault()

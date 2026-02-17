@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Bell } from 'lucide-react'
 
@@ -7,28 +7,7 @@ export default function NotificationBell({ userId }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [showDropdown, setShowDropdown] = useState(false)
 
-  useEffect(() => {
-    fetchNotifications()
-    
-    const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        setNotifications(prev => [payload.new, ...prev])
-        setUnreadCount(prev => prev + 1)
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [userId])
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     const { data } = await supabase
       .from('notifications')
       .select('*')
@@ -40,7 +19,27 @@ export default function NotificationBell({ userId }) {
       setNotifications(data)
       setUnreadCount(data.filter(n => !n.is_read).length)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    fetchNotifications()
+
+    const channel = supabase
+      .channel('notifications')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      }, () => {
+        fetchNotifications()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchNotifications, userId])
 
   const markAsRead = async (notificationId) => {
     await supabase

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { supabase } from '../lib/supabase'
 import { ThemeToggle } from '../lib/ThemeContext'
 import {
@@ -12,20 +12,20 @@ import DashboardLayout from './layout/DashboardLayout'
 
 // Views
 import DashboardHome from './views/DashboardHome'
-import StaffView from './views/StaffView'
-import PhotosView from './views/PhotosView'
+const StaffView = lazy(() => import('./views/StaffView'))
+const PhotosView = lazy(() => import('./views/PhotosView'))
 
 // Other Components
-import StaffDashboard from './StaffDashboard'
-import JobsBoard from './JobsBoard'
-import StaffLocationHistory from './StaffLocationHistory'
-import AttendanceReport from './AttendanceReport'
-import LoginActivity from './LoginActivity'
-import NotificationsPage from './NotificationsPage'
+const StaffDashboard = lazy(() => import('./StaffDashboard'))
+const JobsBoard = lazy(() => import('./JobsBoard'))
+const StaffLocationHistory = lazy(() => import('./StaffLocationHistory'))
+const AttendanceReport = lazy(() => import('./AttendanceReport'))
+const LoginActivity = lazy(() => import('./LoginActivity'))
+const NotificationsPage = lazy(() => import('./NotificationsPage'))
 import NotificationBell from './NotificationBell'
-import PerformanceMetrics from './PerformanceMetrics'
-import Settings from './Settings'
-import JobInsights from './JobInsights'
+const PerformanceMetrics = lazy(() => import('./PerformanceMetrics'))
+const Settings = lazy(() => import('./Settings'))
+const JobInsights = lazy(() => import('./JobInsights'))
 
 // Modals
 import CreateJobModal from './CreateJobModal'
@@ -41,26 +41,7 @@ export default function Dashboard({ session, onSignOut }) {
     const [loading, setLoading] = useState(true)
     const [showCreateJobModal, setShowCreateJobModal] = useState(false)
 
-    // Initial Data Fetch
-    useEffect(() => {
-        fetchUserProfile()
-    }, [])
-
-    useEffect(() => {
-        if (userProfile && userProfile?.role_id) {
-            fetchPermissions(userProfile.role_id)
-        }
-
-        const role = userProfile?.role?.toLowerCase()?.trim()
-        if (userProfile && role !== 'staff') {
-            fetchStaff()
-            fetchJobs()
-            fetchPhotos()
-        }
-    }, [userProfile])
-
-    // Fetch Functions
-    const fetchUserProfile = async () => {
+    const fetchUserProfile = useCallback(async () => {
         setLoading(true)
         const { data, error } = await supabase
             .from('profiles')
@@ -74,9 +55,9 @@ export default function Dashboard({ session, onSignOut }) {
         }
         if (data) setUserProfile(data)
         setLoading(false)
-    }
+    }, [session.user.id])
 
-    const fetchPermissions = async (roleId) => {
+    async function fetchPermissions(roleId) {
         const { data, error } = await supabase
             .from('role_permissions')
             .select('permissions(code)')
@@ -90,7 +71,7 @@ export default function Dashboard({ session, onSignOut }) {
         setPermissions(codes)
     }
 
-    const fetchStaff = async () => {
+    async function fetchStaff() {
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
@@ -101,7 +82,7 @@ export default function Dashboard({ session, onSignOut }) {
         if (data) setStaff(data)
     }
 
-    const fetchJobs = async () => {
+    async function fetchJobs() {
         const { data, error } = await supabase
             .from('jobs')
             .select(`*, assigned_to_profile:profiles!jobs_assigned_to_fkey(full_name)`)
@@ -111,7 +92,7 @@ export default function Dashboard({ session, onSignOut }) {
         if (data) setJobs(data)
     }
 
-    const fetchPhotos = async () => {
+    async function fetchPhotos() {
         const { data, error } = await supabase
             .from('photos')
             .select(`*, jobs (title, clients (name, address)), profiles (full_name)`)
@@ -120,6 +101,24 @@ export default function Dashboard({ session, onSignOut }) {
         if (error) console.error('Error fetching photos:', error)
         if (data) setPhotos(data)
     }
+
+    // Initial Data Fetch
+    useEffect(() => {
+        fetchUserProfile()
+    }, [fetchUserProfile])
+
+    useEffect(() => {
+        if (userProfile && userProfile?.role_id) {
+            fetchPermissions(userProfile.role_id)
+        }
+
+        const role = userProfile?.role?.toLowerCase()?.trim()
+        if (userProfile && role !== 'staff') {
+            fetchStaff()
+            fetchJobs()
+            fetchPhotos()
+        }
+    }, [userProfile])
 
     const hasPermission = (code) => permissions.includes(code)
 
@@ -163,11 +162,19 @@ export default function Dashboard({ session, onSignOut }) {
     const normalizedRole = userProfile?.role?.toLowerCase()?.trim()
     const isStaff = normalizedRole === 'staff'
     const isVerifiedAdmin = normalizedRole === 'admin' || normalizedRole === 'super admin'
+    const viewFallback = (
+        <div className="p-8 text-center text-gray-500">
+            <div className="loading-spinner w-8 h-8 mx-auto mb-3"></div>
+            <p>Loading view...</p>
+        </div>
+    )
 
     if (userProfile && (isStaff || (normalizedRole === 'procurement' && !userProfile.role_id))) {
         return (
             <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
-                <StaffDashboard session={session} onSignOut={onSignOut} />
+                <Suspense fallback={viewFallback}>
+                    <StaffDashboard session={session} onSignOut={onSignOut} />
+                </Suspense>
             </div>
         )
     }
@@ -228,29 +235,37 @@ export default function Dashboard({ session, onSignOut }) {
             )}
 
             {currentView === 'staff' && (
-                <StaffView
-                    staff={staff}
-                    fetchStaff={fetchStaff}
-                    hasPermission={hasPermission}
-                />
+                <Suspense fallback={viewFallback}>
+                    <StaffView
+                        staff={staff}
+                        fetchStaff={fetchStaff}
+                        hasPermission={hasPermission}
+                    />
+                </Suspense>
             )}
 
             {currentView === 'jobs' && (
-                <div className="animate-fadeIn">
-                    <JobsBoard userProfile={userProfile} onSignOut={onSignOut} permissions={permissions} />
-                </div>
+                <Suspense fallback={viewFallback}>
+                    <div className="animate-fadeIn">
+                        <JobsBoard userProfile={userProfile} permissions={permissions} />
+                    </div>
+                </Suspense>
             )}
 
-            {currentView === 'photos' && <PhotosView photos={photos} />}
+            {currentView === 'photos' && (
+                <Suspense fallback={viewFallback}>
+                    <PhotosView photos={photos} />
+                </Suspense>
+            )}
 
             {/* Other Views */}
-            {currentView === 'locations' && <StaffLocationHistory />}
-            {currentView === 'performance' && <PerformanceMetrics />}
-            {currentView === 'attendance' && <AttendanceReport onSignOut={onSignOut} />}
-            {currentView === 'login-activity' && <LoginActivity />}
-            {currentView === 'notifications' && <NotificationsPage userId={session.user.id} />}
-            {currentView === 'settings' && <Settings />}
-            {currentView === 'analytics' && <JobInsights />}
+            {currentView === 'locations' && <Suspense fallback={viewFallback}><StaffLocationHistory /></Suspense>}
+            {currentView === 'performance' && <Suspense fallback={viewFallback}><PerformanceMetrics /></Suspense>}
+            {currentView === 'attendance' && <Suspense fallback={viewFallback}><AttendanceReport /></Suspense>}
+            {currentView === 'login-activity' && <Suspense fallback={viewFallback}><LoginActivity /></Suspense>}
+            {currentView === 'notifications' && <Suspense fallback={viewFallback}><NotificationsPage userId={session.user.id} /></Suspense>}
+            {currentView === 'settings' && <Suspense fallback={viewFallback}><Settings /></Suspense>}
+            {currentView === 'analytics' && <Suspense fallback={viewFallback}><JobInsights /></Suspense>}
 
             {/* Global Modals */}
             <CreateJobModal

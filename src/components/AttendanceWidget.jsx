@@ -1,13 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Clock, MapPin, CheckCircle, LogIn, LogOut as LogOutIcon } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
 
 export default function AttendanceWidget({ userId, userProfile, currentLocation, currentAddress, locationError, onRetryLocation }) {
   const [todayAttendance, setTodayAttendance] = useState(null)
-  const [loading, setLoading] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
   const [checkingOut, setCheckingOut] = useState(false)
+
+  const fetchTodayAttendance = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0]
+
+    const { data } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .single()
+
+    setTodayAttendance(data)
+  }, [userId])
 
   useEffect(() => {
     fetchTodayAttendance()
@@ -28,20 +40,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userId])
-
-  const fetchTodayAttendance = async () => {
-    const today = new Date().toISOString().split('T')[0]
-
-    const { data } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', today)
-      .single()
-
-    setTodayAttendance(data)
-  }
+  }, [fetchTodayAttendance, userId])
 
   const getLocationType = (address) => {
     if (!address) return 'remote'
@@ -81,7 +80,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
     }
   }
 
-  const sendCheckOutNotification = async (locationType) => {
+  const sendCheckOutNotification = async () => {
     try {
       const { data: admins } = await supabase
         .from('profiles')
@@ -98,7 +97,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
           user_id: admin.id,
           title: 'Staff Checked Out',
           message: `${userProfile?.full_name} checked out at ${new Date().toLocaleTimeString()} from ${locationInfo}. Total hours: ${hours}h`,
-          type: 'check_in',
+          type: 'check_out',
           is_read: false
         }))
 
@@ -182,7 +181,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
 
       if (error) throw error
 
-      await sendCheckOutNotification(locationType)
+      await sendCheckOutNotification()
       showToast(`Checked out! Total hours: ${totalHours}h`, 'success')
       fetchTodayAttendance()
     } catch (error) {

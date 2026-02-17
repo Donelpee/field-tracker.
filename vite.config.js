@@ -34,4 +34,20 @@ export default defineConfig({
     //   }
     // })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/node_modules/leaflet/') || id.includes('/node_modules/react-leaflet/') || id.includes('/node_modules/@react-leaflet/')) return 'vendor-maps'
+            if (id.includes('recharts')) return 'vendor-charts'
+            if (id.includes('@supabase/supabase-js')) return 'vendor-supabase'
+            if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/') || id.includes('/node_modules/scheduler/')) return 'vendor-react'
+            if (id.includes('lucide-react') || id.includes('@headlessui/react')) return 'vendor-ui'
+            return 'vendor'
+          }
+        },
+      },
+    },
+  },
 })

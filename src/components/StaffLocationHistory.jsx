@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import { Calendar, User, MapPin, Clock, Search } from 'lucide-react'
@@ -229,7 +229,7 @@ export default function StaffLocationHistory() {
                         </div>
                       </div>
                       <span className={`badge ${job.status === 'completed' ? 'badge-success' :
-                        job.status === 'in-progress' ? 'badge-info' :
+                        job.status === 'in_progress' ? 'badge-info' :
                           'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                         }`}>
                         {job.status}
@@ -269,13 +269,7 @@ function LocationTimelineItem({ loc, index }) {
   const [address, setAddress] = useState(loc.address_short || null)
   const [loadingAddress, setLoadingAddress] = useState(false)
 
-  useEffect(() => {
-    if (!address && loc.latitude && loc.longitude) {
-      fetchAddress()
-    }
-  }, [loc])
-
-  const fetchAddress = async () => {
+  const fetchAddress = useCallback(async () => {
     setLoadingAddress(true)
     try {
       const response = await fetch(
@@ -290,7 +284,13 @@ function LocationTimelineItem({ loc, index }) {
     } finally {
       setLoadingAddress(false)
     }
-  }
+  }, [loc.latitude, loc.longitude])
+
+  useEffect(() => {
+    if (!address && loc.latitude && loc.longitude) {
+      fetchAddress()
+    }
+  }, [address, loc.latitude, loc.longitude, fetchAddress])
 
   return (
     <div className="flex items-start gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Image as ImageIcon, Maximize2, X } from 'lucide-react'
 
@@ -8,11 +8,7 @@ export default function PhotoGallery({ jobId }) {
     const [activeTab, setActiveTab] = useState('all')
     const [selectedPhoto, setSelectedPhoto] = useState(null)
 
-    useEffect(() => {
-        fetchPhotos()
-    }, [jobId])
-
-    const fetchPhotos = async () => {
+    const fetchPhotos = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from('photos')
@@ -28,7 +24,11 @@ export default function PhotoGallery({ jobId }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [jobId])
+
+    useEffect(() => {
+        fetchPhotos()
+    }, [fetchPhotos])
 
     const filteredPhotos = photos.filter(photo => {
         const desc = photo.description?.toUpperCase() || ''

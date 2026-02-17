@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Edit2, Save, X, Search, User, MapPin, Phone, Building } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
@@ -20,11 +20,7 @@ export default function ClientsManager() {
 
     const { showToast } = useToast()
 
-    useEffect(() => {
-        fetchClients()
-    }, [])
-
-    const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
         setLoading(true)
         try {
             const { data, error } = await supabase
@@ -40,7 +36,11 @@ export default function ClientsManager() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [showToast])
+
+    useEffect(() => {
+        fetchClients()
+    }, [fetchClients])
 
     const handleSave = async (e) => {
         e.preventDefault()

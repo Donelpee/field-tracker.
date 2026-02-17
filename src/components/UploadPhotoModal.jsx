@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { X, Camera, Upload, Image as ImageIcon } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
@@ -16,6 +16,14 @@ export default function UploadPhotoModal({ isOpen, onClose, job, userId }) {
   const canvasRef = useRef(null)
   const [error, setError] = useState(null)
 
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setIsCameraActive(false)
+  }, [stream])
+
   useEffect(() => {
     if (!isOpen) {
       stopCamera()
@@ -23,7 +31,7 @@ export default function UploadPhotoModal({ isOpen, onClose, job, userId }) {
     return () => {
       stopCamera()
     }
-  }, [isOpen])
+  }, [isOpen, stopCamera])
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0]
@@ -63,14 +71,6 @@ export default function UploadPhotoModal({ isOpen, onClose, job, userId }) {
       console.error('Camera error:', err)
       setError('Could not access camera. Please check permissions.')
     }
-  }
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop())
-      setStream(null)
-    }
-    setIsCameraActive(false)
   }
 
   const capturePhoto = () => {

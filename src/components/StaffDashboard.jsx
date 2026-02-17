@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { MapPin, Briefcase, Camera, LogOut, Clock, CheckCircle, Navigation, Menu, X, Bell, User, TrendingUp, Zap, Target, Image, RefreshCw, AlertCircle } from 'lucide-react'
 import UploadPhotoModal from './UploadPhotoModal'
@@ -13,6 +13,7 @@ import Pagination from './Pagination'
 import DashboardLayout from './layout/DashboardLayout'
 
 export default function StaffDashboard({ session, onSignOut }) {
+  const { showToast } = useToast()
   const [currentView, setCurrentView] = useState('my-jobs')
   // Sidebar state removed as it is handled by DashboardLayout
   const [userProfile, setUserProfile] = useState(null)
@@ -30,22 +31,11 @@ export default function StaffDashboard({ session, onSignOut }) {
   // New State for Photos
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [photoError, setPhotoError] = useState(null)
+  const locationWatchIdRef = useRef(null)
 
   const itemsPerPage = 9
 
-  useEffect(() => {
-    fetchUserProfile()
-    startLocationTracking()
-  }, [])
-
-  useEffect(() => {
-    if (userProfile) {
-      fetchMyJobs()
-      fetchStaffPhotos()
-    }
-  }, [userProfile])
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -53,9 +43,9 @@ export default function StaffDashboard({ session, onSignOut }) {
       .single()
 
     if (data) setUserProfile(data)
-  }
+  }, [session.user.id])
 
-  const fetchMyJobs = async () => {
+  const fetchMyJobs = useCallback(async () => {
     const { data } = await supabase
       .from('jobs')
       .select(`
@@ -66,9 +56,9 @@ export default function StaffDashboard({ session, onSignOut }) {
       .order('created_at', { ascending: false })
 
     if (data) setMyJobs(data)
-  }
+  }, [session.user.id])
 
-  const fetchStaffPhotos = async () => {
+  const fetchStaffPhotos = useCallback(async () => {
     try {
       setLoadingPhotos(true)
       setPhotoError(null)
@@ -96,28 +86,18 @@ export default function StaffDashboard({ session, onSignOut }) {
     } finally {
       setLoadingPhotos(false)
     }
-  }
+  }, [session.user.id, showToast])
 
-  // Attendance & Efficiency
-  const [todayAttendance, setTodayAttendance] = useState(null)
-
-  useEffect(() => {
-    fetchTodayAttendance()
+  const stopLocationTracking = useCallback(() => {
+    if (locationWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(locationWatchIdRef.current)
+      locationWatchIdRef.current = null
+    }
+    setIsTracking(false)
   }, [])
 
-  const fetchTodayAttendance = async () => {
-    const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('date', today)
-      .single()
-
-    if (data) setTodayAttendance(data)
-  }
-
-  const startLocationTracking = () => {
+  const startLocationTracking = useCallback(() => {
+    stopLocationTracking()
     setIsTracking(true)
     setLocationError(null)
 
@@ -155,9 +135,23 @@ export default function StaffDashboard({ session, onSignOut }) {
         maximumAge: 10000
       }
     )
+    locationWatchIdRef.current = watchId
+  }, [session.user.id, stopLocationTracking])
 
-    return () => navigator.geolocation.clearWatch(watchId)
-  }
+  useEffect(() => {
+    fetchUserProfile()
+    startLocationTracking()
+    return () => {
+      stopLocationTracking()
+    }
+  }, [fetchUserProfile, startLocationTracking, stopLocationTracking])
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchMyJobs()
+      fetchStaffPhotos()
+    }
+  }, [userProfile, fetchMyJobs, fetchStaffPhotos])
 
   const updateJobStatus = async (jobId, newStatus) => {
     const { error } = await supabase
@@ -172,8 +166,6 @@ export default function StaffDashboard({ session, onSignOut }) {
       showToast('Error updating job status', 'error')
     }
   }
-
-  const { showToast } = useToast()
 
   const menuItems = [
     { id: 'my-jobs', label: 'My Jobs', icon: Briefcase },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -21,11 +21,7 @@ export default function JobInsights() {
     })
     const [dateRange, setDateRange] = useState('30') // days
 
-    useEffect(() => {
-        fetchInsights()
-    }, [dateRange])
-
-    const fetchInsights = async () => {
+    const fetchInsights = useCallback(async () => {
         setLoading(true)
         try {
             const startDate = new Date()
@@ -200,7 +196,11 @@ export default function JobInsights() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [dateRange])
+
+    useEffect(() => {
+        fetchInsights()
+    }, [fetchInsights])
 
     const COLORS = ['#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e']
 
@@ -341,7 +341,7 @@ export default function JobInsights() {
                             {stats.staffPerformance.length === 0 ? (
                                 <tr><td colSpan="5" className="py-4 text-center text-gray-400">No performance data available</td></tr>
                             ) : (
-                                stats.staffPerformance.map((staff, i) => (
+                                stats.staffPerformance.map((staff) => (
                                     <tr key={staff.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                         <td className="py-3 px-4 font-medium flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs">

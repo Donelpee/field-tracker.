@@ -42,13 +42,7 @@ const StatCard = ({ icon: Icon, label, value, gradient }) => (
 export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
     const [staffLocations, setStaffLocations] = useState([])
 
-    useEffect(() => {
-        fetchStaffLocations()
-        const interval = setInterval(fetchStaffLocations, 30000)
-        return () => clearInterval(interval)
-    }, [])
-
-    const fetchStaffLocations = async () => {
+    async function fetchStaffLocations() {
         const { data } = await supabase
             .from('location_history')
             .select(`
@@ -68,7 +62,6 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
 
             data.forEach(loc => {
                 const isRecent = new Date(loc.recorded_at) > oneHourAgo
-                // Show if explicitly online OR has recent location update
                 if ((loc.profiles?.is_online || isRecent) && !latestLocations[loc.user_id]) {
                     latestLocations[loc.user_id] = loc
                 }
@@ -77,6 +70,12 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
             setStaffLocations(Object.values(latestLocations))
         }
     }
+
+    useEffect(() => {
+        fetchStaffLocations()
+        const interval = setInterval(fetchStaffLocations, 30000)
+        return () => clearInterval(interval)
+    }, [])
 
     return (
         <div className="space-y-6 animate-fadeIn">

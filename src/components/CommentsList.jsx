@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Send, MessageSquare, User } from 'lucide-react'
 
@@ -7,33 +7,9 @@ export default function CommentsList({ jobId, userId }) {
     const [newComment, setNewComment] = useState('')
     const [loading, setLoading] = useState(false)
 
-    useEffect(() => {
-        fetchComments()
-
-        // Subscribe to new comments
-        const channel = supabase
-            .channel('comments')
-            .on('postgres_changes', {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'comments',
-                filter: `job_id=eq.${jobId}`
-            }, payload => {
-                // Fetch fresh to get profile data OR ideally payload has it if joined, 
-                // but simple INSERT payload doesn't have joins.
-                // Simplest: just refetch or append placeholder. Refetch is safer.
-                fetchComments()
-            })
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [jobId])
-
-    const fetchComments = async () => {
+    const fetchComments = useCallback(async () => {
         try {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('comments')
                 .select(`
             *,
@@ -46,7 +22,31 @@ export default function CommentsList({ jobId, userId }) {
         } catch (error) {
             console.error("Error fetching comments", error)
         }
-    }
+    }, [jobId])
+
+    useEffect(() => {
+        fetchComments()
+
+        // Subscribe to new comments
+        const channel = supabase
+            .channel('comments')
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'comments',
+                filter: `job_id=eq.${jobId}`
+            }, () => {
+                // Fetch fresh to get profile data OR ideally payload has it if joined, 
+                // but simple INSERT payload doesn't have joins.
+                // Simplest: just refetch or append placeholder. Refetch is safer.
+                fetchComments()
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [fetchComments, jobId])
 
     const handleSend = async (e) => {
         e.preventDefault()

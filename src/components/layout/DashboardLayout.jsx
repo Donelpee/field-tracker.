@@ -4,7 +4,7 @@ import Sidebar from './Sidebar'
 import { ThemeToggle } from '../../lib/ThemeContext'
 import NotificationBell from '../NotificationBell'
 
-export default function DashboardLayout({ children, currentView, setCurrentView, menuItems, userProfile, onSignOut }) {
+export default function DashboardLayout({ children, currentView, setCurrentView, menuItems, userProfile }) {
     const [sidebarOpen, setSidebarOpen] = useState(true)
 
     return (

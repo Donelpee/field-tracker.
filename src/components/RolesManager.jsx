@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Search, Trash2, Edit2, Shield, Check, X, ChevronDown, ChevronUp, Lock } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
@@ -20,11 +20,7 @@ export default function RolesManager() {
 
     const { showToast } = useToast()
 
-    useEffect(() => {
-        fetchData()
-    }, [])
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true)
         try {
             // Fetch Roles with their permissions
@@ -62,7 +58,11 @@ export default function RolesManager() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [showToast])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
 
     const handleOpenModal = (role = null) => {
         if (role) {

@@ -41,7 +41,7 @@ export default function LoginActivity() {
         setLoading(true)
         try {
             const { data, error } = await supabase
-                .from('login_logs')
+                .from('login_attempts')
                 .select(`
                     *,
                     profiles (full_name)
@@ -50,7 +50,7 @@ export default function LoginActivity() {
                 .limit(100)
 
             if (error) {
-                console.warn('Login logs table missing or inaccessible:', error.message)
+                console.warn('Login attempts table missing or inaccessible:', error.message)
                 setLogs([]) // Fail gracefuly
             } else if (data) {
                 setLogs(data)

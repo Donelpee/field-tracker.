@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function DebugPage({ session }) {
@@ -11,11 +11,7 @@ export default function DebugPage({ session }) {
         env: import.meta.env.VITE_SUPABASE_URL
     })
 
-    useEffect(() => {
-        runDiagnostics()
-    }, [])
-
-    const runDiagnostics = async () => {
+    const runDiagnostics = useCallback(async () => {
         const errors = []
 
         // 1. Check Session
@@ -54,7 +50,11 @@ export default function DebugPage({ session }) {
             errors,
             env: import.meta.env.VITE_SUPABASE_URL
         })
-    }
+    }, [session?.user])
+
+    useEffect(() => {
+        runDiagnostics()
+    }, [runDiagnostics])
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen font-mono text-sm">

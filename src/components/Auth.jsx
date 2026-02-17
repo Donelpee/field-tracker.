@@ -106,7 +106,7 @@ export default function Auth({ onAuthSuccess }) {
           await supabase.from('login_attempts').insert({
             user_id: authData.user.id,
             device_id: deviceId,
-            status: 'failed',
+            status: 'blocked_device',
             ip_address: null
           })
           throw new Error('This account is locked to another device. Please contact your administrator.')
