@@ -58,11 +58,10 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
 
         if (data) {
             const latestLocations = {}
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
 
             data.forEach(loc => {
-                const isRecent = new Date(loc.recorded_at) > oneHourAgo
-                if ((loc.profiles?.is_online || isRecent) && !latestLocations[loc.user_id]) {
+                const isOnlineStaff = loc.profiles?.role === 'staff' && loc.profiles?.is_online === true
+                if (isOnlineStaff && !latestLocations[loc.user_id]) {
                     latestLocations[loc.user_id] = loc
                 }
             })
@@ -96,7 +95,7 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800">Live Staff Locations</h2>
-                            <p className="text-sm text-gray-500">Real-time tracking • Updates every 30s</p>
+                            <p className="text-sm text-gray-500">Online staff only • Updates every 30s</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full">

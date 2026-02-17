@@ -6,33 +6,30 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
-    // VitePWA({
-    //   registerType: 'autoUpdate',
-    //   includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-    //   manifest: {
-    //     name: 'Trakby Field Tracker',
-    //     short_name: 'Trakby',
-    //     description: 'Standard operational procedure for field staff tracking',
-    //     theme_color: '#ffffff',
-    //     background_color: '#ffffff',
-    //     display: 'standalone',
-    //     scope: '/',
-    //     start_url: '/',
-    //     orientation: 'portrait',
-    //     icons: [
-    //       {
-    //         src: '/icon-192.png',
-    //         sizes: '192x192',
-    //         type: 'image/png'
-    //       },
-    //       {
-    //         src: '/icon-512.png',
-    //         sizes: '512x512',
-    //         type: 'image/png'
-    //       }
-    //     ]
-    //   }
-    // })
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifestFilename: 'manifest.json',
+      includeAssets: ['logo.svg', 'vite.svg'],
+      manifest: {
+        name: 'Trakby Field Tracker',
+        short_name: 'Trakby',
+        description: 'Staff location and job tracking application',
+        theme_color: '#2563EB',
+        background_color: '#ffffff',
+        display: 'standalone',
+        scope: '/',
+        start_url: '/',
+        orientation: 'portrait',
+        icons: [
+          {
+            src: '/logo.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          }
+        ]
+      }
+    })
   ],
   build: {
     rollupOptions: {
