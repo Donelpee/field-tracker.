@@ -8,9 +8,12 @@ export default function DashboardLayout({ children, currentView, setCurrentView,
     const [sidebarOpen, setSidebarOpen] = useState(true)
 
     return (
-        <div className="min-h-screen gradient-bg-light flex flex-col lg:flex-row">
+        <div className="min-h-[100dvh] gradient-bg-light flex flex-col lg:flex-row">
             {/* Mobile Header */}
-            <div className="lg:hidden glass-white shadow-lg p-4 flex items-center justify-between sticky top-0 z-20 safe-top">
+            <div
+                className="lg:hidden glass-white shadow-lg p-4 flex items-center justify-between sticky top-0 z-20"
+                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+            >
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-icon">
                     {sidebarOpen ? <X className="icon-fixed" /> : <Menu className="icon-fixed" />}
                 </button>
@@ -37,7 +40,7 @@ export default function DashboardLayout({ children, currentView, setCurrentView,
 
             {/* Main Content Wrapper */}
             <div className="flex-1 min-w-0 transition-all duration-300">
-                <div className="p-4 lg:p-8 min-h-screen">
+                <div className="p-4 lg:p-8 min-h-[100dvh]">
                     <div className="max-w-7xl mx-auto w-full">
                         {children}
                     </div>

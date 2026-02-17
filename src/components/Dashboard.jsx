@@ -206,8 +206,8 @@ export default function Dashboard({ session, onSignOut }) {
                     <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
                         {menuItems.find(item => item.id === currentView)?.label || 'Dashboard'}
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Welcome back, <span className="font-semibold text-gradient-primary">{userProfile?.full_name}</span>
+                    <p className="text-gray-600 dark:text-gray-400 hidden lg:block">
+                        Manage operations and team activity
                     </p>
                 </div>
 
