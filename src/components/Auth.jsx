@@ -92,14 +92,29 @@ export default function Auth({ onAuthSuccess }) {
 
         // Check if device is locked (STAFF ONLY)
         const deviceId = await getDeviceId()
-        const { data: existingDevice } = await supabase
+        const { data: existingDevice, error: profileFetchError } = await supabase
           .from('profiles')
           .select('device_id, role')
           .eq('id', authData.user.id)
           .single()
 
-        // Only enforce device lock for Staff role
-        const isStaffRole = existingDevice?.role?.toLowerCase() === 'staff'
+        if (profileFetchError) {
+          throw new Error('Could not verify account role. Please try again.')
+        }
+
+        const profileRole = String(existingDevice?.role || '').trim().toLowerCase()
+        const metadataRole = String(authData.user?.user_metadata?.role || '').trim().toLowerCase()
+
+        if (metadataRole && profileRole && metadataRole !== profileRole) {
+          console.warn('Role mismatch detected between profile and auth metadata', {
+            profileRole,
+            metadataRole,
+            userId: authData.user.id
+          })
+        }
+
+        // Explicitly enforce device lock for Staff role only
+        const isStaffRole = profileRole === 'staff'
 
         if (isStaffRole && existingDevice?.device_id && existingDevice.device_id !== deviceId) {
           await supabase.auth.signOut()
