@@ -104,7 +104,8 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
     { id: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-gray-100 text-gray-800', count: counts.cancelled },
   ]
 
-  const canCreateJob = permissions?.includes('jobs.create') || userProfile?.role === 'admin';
+  const normalizedRole = String(userProfile?.role || '').trim().toLowerCase()
+  const canCreateJob = permissions?.includes('jobs.create') || normalizedRole === 'admin' || normalizedRole === 'super admin'
 
   return (
     <div className="space-y-6 animate-fadeIn">
