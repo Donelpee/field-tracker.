@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Dashboard from './components/Dashboard'
 import DebugPage from './components/DebugPage'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -59,7 +60,10 @@ function App() {
   if (!session) {
     return (
       <ThemeProvider>
-        <Auth onAuthSuccess={handleAuthSuccess} />
+        <>
+          <Auth onAuthSuccess={handleAuthSuccess} />
+          <PWAInstallPrompt />
+        </>
       </ThemeProvider>
     )
   }
@@ -67,7 +71,10 @@ function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <Dashboard session={session} onSignOut={handleSignOut} />
+        <>
+          <Dashboard session={session} onSignOut={handleSignOut} />
+          <PWAInstallPrompt />
+        </>
       </ToastProvider>
     </ThemeProvider>
   )
