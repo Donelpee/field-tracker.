@@ -366,6 +366,7 @@ export default function AttendanceReport() {
               totalItems={attendance.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              showWhenSinglePage
             />
           </>
         )}

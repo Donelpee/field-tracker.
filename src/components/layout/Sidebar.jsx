@@ -15,7 +15,7 @@ export default function Sidebar({
             {!sidebarOpen && (
                 <button
                     onClick={() => setSidebarOpen(true)}
-                    className="fixed top-4 left-4 w-10 h-10 !bg-white border border-gray-200 rounded-full items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110 hidden lg:flex"
+                    className="fixed top-4 left-4 w-10 h-10 !bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 !text-gray-500 z-[9999] transform transition-transform hover:scale-110"
                     title="Expand Sidebar"
                 >
                     <Menu size={20} />

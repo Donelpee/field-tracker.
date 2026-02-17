@@ -5,11 +5,12 @@ export default function Pagination({
     currentPage,
     totalItems,
     itemsPerPage = 10,
-    onPageChange
+    onPageChange,
+    showWhenSinglePage = false
 }) {
     const totalPages = Math.ceil(totalItems / itemsPerPage)
 
-    if (totalPages <= 1) return null
+    if (totalPages <= 1 && !showWhenSinglePage) return null
 
     const getPageNumbers = () => {
         const pages = []
