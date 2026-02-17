@@ -1,4 +1,5 @@
 import React from 'react'
+import { X } from 'lucide-react'
 
 export default function Sidebar({
     sidebarOpen,
@@ -16,6 +17,16 @@ export default function Sidebar({
                 ${sidebarOpen ? 'translate-x-0 w-72 overflow-visible' : '-translate-x-full w-72 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
             `}>
                 <div className="p-6 border-b border-gray-100 flex-shrink-0 relative">
+                    {sidebarOpen && (
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="lg:hidden absolute top-4 right-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-600 z-50"
+                            aria-label="Close sidebar"
+                            title="Close Sidebar"
+                        >
+                            <X className="icon-fixed" />
+                        </button>
+                    )}
                     <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hidden lg:block text-center">
                         Trakby
                     </h1>
