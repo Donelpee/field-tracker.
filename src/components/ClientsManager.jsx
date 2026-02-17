@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Edit2, Save, X, Search, User, MapPin, Phone, Building } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
+import Pagination from './Pagination'
 
 export default function ClientsManager() {
     const [clients, setClients] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 8
 
     // Edit/Add state
     const [isEditing, setIsEditing] = useState(null)
@@ -122,6 +125,21 @@ export default function ClientsManager() {
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.address.toLowerCase().includes(searchTerm.toLowerCase())
     )
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm])
+
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(filteredClients.length / itemsPerPage))
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [filteredClients.length, currentPage])
+
+    const totalItems = filteredClients.length
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const paginatedClients = filteredClients.slice(startIndex, startIndex + itemsPerPage)
 
     return (
         <div className="space-y-6 animate-fadeIn">
@@ -254,7 +272,7 @@ export default function ClientsManager() {
                         <p className="font-medium">No clients found</p>
                     </div>
                 ) : (
-                    filteredClients.map((client) => (
+                    paginatedClients.map((client) => (
                         <div
                             key={client.id}
                             className="group bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
@@ -300,6 +318,15 @@ export default function ClientsManager() {
                     ))
                 )}
             </div>
+
+            {!loading && filteredClients.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     )
 }

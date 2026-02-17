@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Edit2, Save, X, Search, Briefcase } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
+import Pagination from './Pagination'
 
 export default function JobTypesManager() {
     const [jobTypes, setJobTypes] = useState([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 8
 
     // Edit/Add state
     const [isEditing, setIsEditing] = useState(null) // ID of item being edited
@@ -106,6 +109,21 @@ export default function JobTypesManager() {
         type.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (type.description && type.description.toLowerCase().includes(searchTerm.toLowerCase()))
     )
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm])
+
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(filteredTypes.length / itemsPerPage))
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [filteredTypes.length, currentPage])
+
+    const totalItems = filteredTypes.length
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const paginatedTypes = filteredTypes.slice(startIndex, startIndex + itemsPerPage)
 
     return (
         <div className="space-y-6 animate-fadeIn">
@@ -210,7 +228,7 @@ export default function JobTypesManager() {
                         <p className="text-sm mt-1 opacity-70">Add one to get started</p>
                     </div>
                 ) : (
-                    filteredTypes.map((type) => (
+                    paginatedTypes.map((type) => (
                         <div
                             key={type.id}
                             className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex justify-between items-center"
@@ -246,6 +264,15 @@ export default function JobTypesManager() {
                     ))
                 )}
             </div>
+
+            {!loading && filteredTypes.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     )
 }

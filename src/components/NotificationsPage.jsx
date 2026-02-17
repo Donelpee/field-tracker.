@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../lib/ToastContext'
 import { Bell, Check, CheckCheck, Trash2, Briefcase, MapPin, Camera, Award, LogOut } from 'lucide-react'
+import Pagination from './Pagination'
 
 export default function NotificationsPage({ userId }) {
   const { showToast } = useToast()
@@ -9,6 +10,8 @@ export default function NotificationsPage({ userId }) {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true)
@@ -154,6 +157,21 @@ export default function NotificationsPage({ userId }) {
     return true
   })
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / itemsPerPage))
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [filteredNotifications.length, currentPage])
+
+  const totalItems = filteredNotifications.length
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedNotifications = filteredNotifications.slice(startIndex, startIndex + itemsPerPage)
+
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   return (
@@ -238,60 +256,69 @@ export default function NotificationsPage({ userId }) {
             </p>
           </div>
         ) : (
-          <div className="divide-y">
-            {filteredNotifications.map(notification => (
-              <div
-                key={notification.id}
-                className={`p-5 hover:bg-gray-50 transition ${
-                  !notification.is_read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-full ${
-                    !notification.is_read ? 'bg-white' : 'bg-gray-100'
-                  }`}>
-                    {getNotificationIcon(notification.type)}
-                  </div>
+          <>
+            <div className="divide-y">
+              {paginatedNotifications.map(notification => (
+                <div
+                  key={notification.id}
+                  className={`p-5 hover:bg-gray-50 transition ${
+                    !notification.is_read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-full ${
+                      !notification.is_read ? 'bg-white' : 'bg-gray-100'
+                    }`}>
+                      {getNotificationIcon(notification.type)}
+                    </div>
 
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                          {notification.title}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                            {notification.title}
+                            {!notification.is_read && (
+                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            )}
+                          </h3>
+                          <p className="text-gray-600 mt-1">{notification.message}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 ml-4">
                           {!notification.is_read && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <button
+                              onClick={() => markAsRead(notification.id)}
+                              className="p-2 hover:bg-blue-100 rounded-lg transition"
+                              title="Mark as read"
+                            >
+                              <Check className="w-4 h-4 text-blue-600" />
+                            </button>
                           )}
-                        </h3>
-                        <p className="text-gray-600 mt-1">{notification.message}</p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 ml-4">
-                        {!notification.is_read && (
                           <button
-                            onClick={() => markAsRead(notification.id)}
-                            className="p-2 hover:bg-blue-100 rounded-lg transition"
-                            title="Mark as read"
+                            onClick={() => deleteNotification(notification.id)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition"
+                            title="Delete"
                           >
-                            <Check className="w-4 h-4 text-blue-600" />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => deleteNotification(notification.id)}
-                          className="p-2 hover:bg-red-100 rounded-lg transition"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
     </div>

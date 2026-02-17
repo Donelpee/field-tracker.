@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Search, Trash2, Edit2, Shield, Check, X, ChevronDown, ChevronUp, Lock } from 'lucide-react'
 import { useToast } from '../lib/ToastContext'
+import Pagination from './Pagination'
 
 export default function RolesManager() {
     const [roles, setRoles] = useState([])
@@ -10,6 +11,8 @@ export default function RolesManager() {
     const [searchQuery, setSearchQuery] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingRole, setEditingRole] = useState(null)
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 10
 
     // Form State
     const [formData, setFormData] = useState({
@@ -215,6 +218,21 @@ export default function RolesManager() {
         role.description?.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery])
+
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(filteredRoles.length / itemsPerPage))
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [filteredRoles.length, currentPage])
+
+    const totalItems = filteredRoles.length
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const paginatedRoles = filteredRoles.slice(startIndex, startIndex + itemsPerPage)
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
             {/* Header */}
@@ -256,7 +274,7 @@ export default function RolesManager() {
                 ) : filteredRoles.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">No roles found.</div>
                 ) : (
-                    filteredRoles.map((role) => (
+                    paginatedRoles.map((role) => (
                         <div key={role.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                             <div>
                                 <div className="flex items-center gap-3">
@@ -294,6 +312,15 @@ export default function RolesManager() {
                     ))
                 )}
             </div>
+
+            {!loading && filteredRoles.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             {/* Modal */}
             {isModalOpen && (

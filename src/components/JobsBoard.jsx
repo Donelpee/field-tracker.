@@ -4,6 +4,7 @@ import { useToast } from '../lib/ToastContext'
 import { Search, Plus, Edit, Clock, Users as UsersIcon, Briefcase, CheckCircle, XCircle, AlertCircle, MapPin, Calendar } from 'lucide-react'
 import CreateJobModal from './CreateJobModal'
 import EditJobModal from './EditJobModal'
+import Pagination from './Pagination'
 
 export default function JobsBoard({ userProfile, permissions = [] }) {
   const { showToast } = useToast()
@@ -16,6 +17,8 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
   const [selectedJob, setSelectedJob] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9
 
   const fetchJobs = useCallback(async () => {
     setLoading(true)
@@ -75,6 +78,17 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
     filterJobs()
   }, [filterJobs])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredJobs.length / itemsPerPage))
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [filteredJobs.length, currentPage])
+
   const getCategoryCounts = () => {
     return {
       all: jobs.length,
@@ -106,6 +120,9 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
 
   const normalizedRole = String(userProfile?.role || '').trim().toLowerCase()
   const canCreateJob = permissions?.includes('jobs.create') || normalizedRole === 'admin' || normalizedRole === 'super admin'
+  const totalItems = filteredJobs.length
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedJobs = filteredJobs.slice(startIndex, startIndex + itemsPerPage)
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -196,72 +213,81 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredJobs.map((job, index) => (
-              <div
-                key={job.id}
-                onClick={() => handleJobClick(job)}
-                className="card-premium card-hover p-5 cursor-pointer group border-l-4"
-                style={{
-                  animationDelay: `${index * 50}ms`,
-                  borderLeftColor: job.status === 'completed' ? '#10B981' :
-                    job.status === 'in_progress' ? '#3B82F6' :
-                      job.status === 'cancelled' ? '#EF4444' : '#F59E0B'
-                }}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-smooth line-clamp-1">
-                    {job.title}
-                  </h3>
-                  <span className={`badge ${job.status === 'in_progress' ? 'badge-info' :
-                    job.status === 'completed' ? 'badge-success' :
-                      job.status === 'cancelled' ? 'badge-error' :
-                        'badge-warning'
-                    }`}>
-                    {job.status === 'pending' && job.assigned_to ? 'Assigned' : job.status}
-                  </span>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <UsersIcon className="w-4 h-4 mt-0.5 text-gray-400 shrink-0" />
-                    <span className="font-medium text-gray-900">{job.clients?.name}</span>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {paginatedJobs.map((job, index) => (
+                <div
+                  key={job.id}
+                  onClick={() => handleJobClick(job)}
+                  className="card-premium card-hover p-5 cursor-pointer group border-l-4"
+                  style={{
+                    animationDelay: `${index * 50}ms`,
+                    borderLeftColor: job.status === 'completed' ? '#10B981' :
+                      job.status === 'in_progress' ? '#3B82F6' :
+                        job.status === 'cancelled' ? '#EF4444' : '#F59E0B'
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-smooth line-clamp-1">
+                      {job.title}
+                    </h3>
+                    <span className={`badge ${job.status === 'in_progress' ? 'badge-info' :
+                      job.status === 'completed' ? 'badge-success' :
+                        job.status === 'cancelled' ? 'badge-error' :
+                          'badge-warning'
+                      }`}>
+                      {job.status === 'pending' && job.assigned_to ? 'Assigned' : job.status}
+                    </span>
                   </div>
 
-                  <div className="flex items-start gap-2 text-sm text-gray-500">
-                    <MapPin className="w-4 h-4 mt-0.5 text-gray-400 shrink-0" />
-                    <span className="line-clamp-1">{job.clients?.address}</span>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <UsersIcon className="w-4 h-4 mt-0.5 text-gray-400 shrink-0" />
+                      <span className="font-medium text-gray-900">{job.clients?.name}</span>
+                    </div>
+
+                    <div className="flex items-start gap-2 text-sm text-gray-500">
+                      <MapPin className="w-4 h-4 mt-0.5 text-gray-400 shrink-0" />
+                      <span className="line-clamp-1">{job.clients?.address}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                      {job.assigned_to ? (
+                        <span className="text-gray-600 flex items-center gap-1">
+                          Assigned: <span className="font-semibold text-blue-600">{job.profiles?.full_name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-red-500 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Unassigned
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-1 h-1 rounded-full bg-gray-300"></div>
-                    {job.assigned_to ? (
-                      <span className="text-gray-600 flex items-center gap-1">
-                        Assigned: <span className="font-semibold text-blue-600">{job.profiles?.full_name}</span>
-                      </span>
-                    ) : (
-                      <span className="text-red-500 font-medium flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Unassigned
-                      </span>
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(job.created_at).toLocaleDateString()}
+                    </div>
+                    {job.scheduled_time && (
+                      <div className="flex items-center gap-1 text-orange-500 font-medium">
+                        <Clock className="w-3 h-3" />
+                        {new Date(job.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     )}
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(job.created_at).toLocaleDateString()}
-                  </div>
-                  {job.scheduled_time && (
-                    <div className="flex items-center gap-1 text-orange-500 font-medium">
-                      <Clock className="w-3 h-3" />
-                      {new Date(job.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
