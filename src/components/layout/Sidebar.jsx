@@ -23,6 +23,17 @@ export default function Sidebar({
                 </button>
             )}
 
+            {sidebarOpen && (
+                <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="fixed top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-[9999] transform transition-transform hover:scale-110"
+                    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+                    title="Collapse Sidebar"
+                >
+                    <X size={20} />
+                </button>
+            )}
+
             <aside className={`
                 fixed lg:sticky top-0 h-screen z-30 flex-shrink-0
                 glass-white shadow-premium transition-all duration-300 ease-in-out flex flex-col
@@ -33,15 +44,6 @@ export default function Sidebar({
                         Trakby
                     </h1>
 
-                    {sidebarOpen && (
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-500 z-50 transition-transform hover:scale-110"
-                            title="Collapse Sidebar"
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
                 </div>
 
                 {/* User Profile */}
