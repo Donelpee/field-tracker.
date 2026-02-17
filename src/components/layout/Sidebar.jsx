@@ -20,7 +20,7 @@ export default function Sidebar({
                     {sidebarOpen && (
                         <button
                             onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden absolute top-4 right-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-600 z-50"
+                            className="lg:hidden absolute top-4 left-4 w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 text-gray-600 z-50"
                             aria-label="Close sidebar"
                             title="Close Sidebar"
                         >
