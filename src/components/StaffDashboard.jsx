@@ -33,7 +33,7 @@ export default function StaffDashboard({ session, onSignOut }) {
   const [photoError, setPhotoError] = useState(null)
   const locationWatchIdRef = useRef(null)
 
-  const itemsPerPage = 9
+  const itemsPerPage = 10
 
   const fetchUserProfile = useCallback(async () => {
     const { data } = await supabase

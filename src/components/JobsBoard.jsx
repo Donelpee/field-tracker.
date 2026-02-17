@@ -18,7 +18,7 @@ export default function JobsBoard({ userProfile, permissions = [] }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 9
+  const itemsPerPage = 10
 
   const fetchJobs = useCallback(async () => {
     setLoading(true)

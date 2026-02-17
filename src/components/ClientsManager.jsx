@@ -9,7 +9,7 @@ export default function ClientsManager() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 8
+    const itemsPerPage = 10
 
     // Edit/Add state
     const [isEditing, setIsEditing] = useState(null)
