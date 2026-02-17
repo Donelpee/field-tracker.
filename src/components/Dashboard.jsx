@@ -215,7 +215,9 @@ export default function Dashboard({ session, onSignOut }) {
                     <div className="hidden lg:block">
                         <NotificationBell userId={session.user.id} />
                     </div>
-                    <ThemeToggle />
+                    <div className="hidden lg:block">
+                        <ThemeToggle />
+                    </div>
                     <button
                         onClick={onSignOut}
                         className="group relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-white transition-smooth shadow-lg hover:shadow-xl"
