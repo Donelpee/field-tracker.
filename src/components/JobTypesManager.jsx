@@ -231,20 +231,20 @@ export default function JobTypesManager() {
                     paginatedTypes.map((type) => (
                         <div
                             key={type.id}
-                            className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex justify-between items-center"
+                            className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
                                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
                                     <Briefcase className="w-5 h-5" />
                                 </div>
-                                <div>
-                                    <h4 className="font-bold text-gray-800 dark:text-white text-lg">{type.title}</h4>
+                                <div className="min-w-0">
+                                    <h4 className="font-bold text-gray-800 dark:text-white text-lg truncate">{type.title}</h4>
                                     {type.description && (
                                         <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">{type.description}</p>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 w-full sm:w-auto justify-end">
                                 <button
                                     onClick={() => startEdit(type)}
                                     className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"

@@ -373,11 +373,11 @@ export default function AttendanceReport() {
         )}
 
         {!loading && (
-          <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-            <p className="text-sm text-gray-700">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+            <p className="text-sm text-gray-700 text-center sm:text-left">
               Showing <span className="font-medium">{startItem}</span> - <span className="font-medium">{endItem}</span> of <span className="font-medium">{attendance.length}</span> results
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}

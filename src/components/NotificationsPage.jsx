@@ -185,11 +185,11 @@ export default function NotificationsPage({ userId }) {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center"
               >
                 <CheckCheck className="w-4 h-4" />
                 Mark All Read
@@ -198,7 +198,7 @@ export default function NotificationsPage({ userId }) {
             {notifications.filter(n => n.is_read).length > 0 && (
               <button
                 onClick={deleteAllRead}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 w-full sm:w-auto justify-center"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Read
@@ -207,7 +207,7 @@ export default function NotificationsPage({ userId }) {
           </div>
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 mt-4">
           {['all', 'unread', 'read'].map(tab => (
             <button
               key={tab}
@@ -265,15 +265,15 @@ export default function NotificationsPage({ userId }) {
                     !notification.is_read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3">
                     <div className={`p-3 rounded-full ${
                       !notification.is_read ? 'bg-white' : 'bg-gray-100'
                     }`}>
                       {getNotificationIcon(notification.type)}
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                             {notification.title}
@@ -287,7 +287,7 @@ export default function NotificationsPage({ userId }) {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-2 sm:ml-4">
                           {!notification.is_read && (
                             <button
                               onClick={() => markAsRead(notification.id)}
