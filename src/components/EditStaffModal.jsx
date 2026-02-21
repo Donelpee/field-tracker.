@@ -89,13 +89,17 @@ export default function EditStaffModal({ isOpen, onClose, staffMember, onStaffUp
 
     setLoading(true)
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ device_id: null })
         .eq('id', staffMember.id)
+        .select('device_id')
+        .single()
 
       if (error) throw error
-
+      if (!data || data.device_id !== null) {
+        throw new Error('Device lock was not cleared. Please check database permissions or try again.')
+      }
       alert('Device lock has been reset. The staff member can now log in from a new device.')
     } catch (error) {
       alert('Error resetting device: ' + error.message)

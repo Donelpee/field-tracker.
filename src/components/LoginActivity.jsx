@@ -64,8 +64,9 @@ export default function LoginActivity() {
     }
 
     const filteredLogs = logs.filter(log => {
-        if (filterStatus !== 'all' && log.status !== filterStatus) return false
-        if (filterUser !== 'all' && log.user_id !== filterUser) return false
+        // Defensive: status and user_id may be undefined or mismatched types
+        if (filterStatus !== 'all' && String(log.status) !== String(filterStatus)) return false
+        if (filterUser !== 'all' && String(log.user_id) !== String(filterUser)) return false
         return true
     })
 
