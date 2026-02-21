@@ -83,6 +83,11 @@ export default function EditStaffModal({ isOpen, onClose, staffMember, onStaffUp
   }
 
   const handleResetDevice = async () => {
+    if (String(formData.role || '').trim().toLowerCase() !== 'staff') {
+      alert('Device reset is only applicable to staff accounts.')
+      return
+    }
+
     if (!confirm('Reset device lock for this staff member? They will be able to log in from a new device.')) {
       return
     }
@@ -101,6 +106,7 @@ export default function EditStaffModal({ isOpen, onClose, staffMember, onStaffUp
         throw new Error('Device lock was not cleared. Please check database permissions or try again.')
       }
       alert('Device lock has been reset. The staff member can now log in from a new device.')
+      onStaffUpdated()
     } catch (error) {
       alert('Error resetting device: ' + error.message)
     } finally {

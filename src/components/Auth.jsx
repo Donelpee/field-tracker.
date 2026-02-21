@@ -4,6 +4,14 @@ import { getDeviceId } from '../lib/deviceFingerprint'
 import { useToast } from '../lib/ToastContext'
 import { Mail, Lock, User, Phone } from 'lucide-react'
 
+const normalizeRole = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ')
+
+const isAdminRoleValue = (role) => role === 'admin' || role === 'super admin'
+
 export default function Auth({ onAuthSuccess }) {
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
@@ -83,7 +91,7 @@ export default function Auth({ onAuthSuccess }) {
         showToast('Account created successfully!', 'success')
         onAuthSuccess()
       } else {
-        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password
         })
@@ -94,33 +102,37 @@ export default function Auth({ onAuthSuccess }) {
         const deviceId = await getDeviceId()
         const { data: existingDevice, error: profileFetchError } = await supabase
           .from('profiles')
-          .select('device_id, role')
-          .eq('id', authData.user.id)
+          .select('device_id, role, role_id, roles:roles!profiles_role_id_fkey(name)')
+          .eq('id', signInData.user.id)
           .single()
 
         if (profileFetchError) {
           throw new Error('Could not verify account role. Please try again.')
         }
 
-        const profileRole = String(existingDevice?.role || '').trim().toLowerCase()
-        const metadataRole = String(authData.user?.user_metadata?.role || '').trim().toLowerCase()
+        const profileRole = normalizeRole(existingDevice?.role)
+        const roleFromRoleId = normalizeRole(existingDevice?.roles?.name)
+        const metadataRole = normalizeRole(signInData.user?.user_metadata?.role)
 
         if (metadataRole && profileRole && metadataRole !== profileRole) {
           console.warn('Role mismatch detected between profile and auth metadata', {
             profileRole,
             metadataRole,
-            userId: authData.user.id
+            userId: signInData.user.id
           })
         }
 
-        // Device lock enforcement: Only for staff, NOT admin
-        const isStaffRole = profileRole === 'staff'
-        const isAdminRole = profileRole === 'admin' || profileRole === 'super admin'
+        // Device lock enforcement: only for staff.
+        // If any role source marks the user as admin/super admin, do not apply device lock.
+        const roleCandidates = [roleFromRoleId, profileRole, metadataRole].filter(Boolean)
+        const hasAdminRole = roleCandidates.some(isAdminRoleValue)
+        const hasStaffRole = roleCandidates.some((role) => role === 'staff')
+        const isStaffRole = hasStaffRole && !hasAdminRole
 
         if (isStaffRole && existingDevice?.device_id && existingDevice.device_id !== deviceId) {
           await supabase.auth.signOut()
           await supabase.from('login_attempts').insert({
-            user_id: authData.user.id,
+            user_id: signInData.user.id,
             device_id: deviceId,
             status: 'blocked_device',
             ip_address: null
@@ -130,7 +142,7 @@ export default function Auth({ onAuthSuccess }) {
 
         // Staff: Set device_id if not already set
         if (isStaffRole && !existingDevice?.device_id) {
-          await supabase.from('profiles').update({ device_id: deviceId }).eq('id', authData.user.id)
+          await supabase.from('profiles').update({ device_id: deviceId }).eq('id', signInData.user.id)
         }
 
         // Admin: No device lock enforcement, allow login from any device
@@ -147,7 +159,7 @@ export default function Auth({ onAuthSuccess }) {
         }
 
         await supabase.from('login_attempts').insert({
-          user_id: authData.user.id,
+          user_id: signInData.user.id,
           device_id: deviceId,
           status: 'success',
           ip_address: null,
@@ -159,6 +171,26 @@ export default function Auth({ onAuthSuccess }) {
       }
     } catch (error) {
       console.error('Auth error:', error)
+      // Best effort log for failed credentials or other login failures.
+      const shouldLogFailedAttempt =
+        !isSignUp &&
+        !String(error?.message || '').toLowerCase().includes('locked to another device')
+
+      if (shouldLogFailedAttempt) {
+        try {
+          const currentSession = await supabase.auth.getSession()
+          const fallbackUserId = currentSession?.data?.session?.user?.id || null
+          const deviceId = await getDeviceId()
+          await supabase.from('login_attempts').insert({
+            user_id: fallbackUserId,
+            device_id: deviceId,
+            status: 'failed',
+            ip_address: null
+          })
+        } catch (logError) {
+          console.warn('Failed to log unsuccessful login attempt', logError)
+        }
+      }
       showToast(error.message, 'error')
     } finally {
       setLoading(false)

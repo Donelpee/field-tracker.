@@ -4,6 +4,8 @@ import { Shield, Filter, CheckCircle, XCircle, AlertTriangle, RefreshCw } from '
 import Pagination from './Pagination'
 import { SkeletonTable } from './Skeletons'
 
+const normalizeStatus = (value) => String(value || '').trim().toLowerCase()
+
 export default function LoginActivity() {
     const [logs, setLogs] = useState([])
     const [loading, setLoading] = useState(true)
@@ -44,14 +46,42 @@ export default function LoginActivity() {
                 .from('login_attempts')
                 .select(`
                     *,
-                    profiles (full_name)
+                    profiles:profiles!login_attempts_user_id_fkey (full_name)
                 `)
                 .order('created_at', { ascending: false })
                 .limit(100)
 
             if (error) {
-                console.warn('Login attempts table missing or inaccessible:', error.message)
-                setLogs([]) // Fail gracefuly
+                console.warn('Login activity join failed, retrying fallback query:', error.message)
+                const { data: fallbackLogs, error: fallbackError } = await supabase
+                    .from('login_attempts')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100)
+
+                if (fallbackError) {
+                    console.warn('Login attempts table missing or inaccessible:', fallbackError.message)
+                    setLogs([])
+                    return
+                }
+
+                const userIds = [...new Set((fallbackLogs || []).map((log) => log.user_id).filter(Boolean))]
+                let profileMap = {}
+                if (userIds.length > 0) {
+                    const { data: profileRows } = await supabase
+                        .from('profiles')
+                        .select('id, full_name')
+                        .in('id', userIds)
+                    profileMap = (profileRows || []).reduce((acc, row) => {
+                        acc[row.id] = row
+                        return acc
+                    }, {})
+                }
+
+                setLogs((fallbackLogs || []).map((log) => ({
+                    ...log,
+                    profiles: profileMap[log.user_id] || null
+                })))
             } else if (data) {
                 setLogs(data)
             }
@@ -64,8 +94,7 @@ export default function LoginActivity() {
     }
 
     const filteredLogs = logs.filter(log => {
-        // Defensive: status and user_id may be undefined or mismatched types
-        if (filterStatus !== 'all' && String(log.status) !== String(filterStatus)) return false
+        if (filterStatus !== 'all' && normalizeStatus(log.status) !== normalizeStatus(filterStatus)) return false
         if (filterUser !== 'all' && String(log.user_id) !== String(filterUser)) return false
         return true
     })
@@ -177,19 +206,19 @@ export default function LoginActivity() {
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
                         <p className="text-sm text-green-700 dark:text-green-400 font-medium">Successful Logins</p>
                         <p className="text-2xl font-bold text-green-900 dark:text-green-300">
-                            {logs.filter(l => l.status === 'success').length}
+                            {logs.filter(l => normalizeStatus(l.status) === 'success').length}
                         </p>
                     </div>
                     <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
                         <p className="text-sm text-red-700 dark:text-red-400 font-medium">Blocked Attempts</p>
                         <p className="text-2xl font-bold text-red-900 dark:text-red-300">
-                            {logs.filter(l => l.status === 'blocked_device').length}
+                            {logs.filter(l => normalizeStatus(l.status) === 'blocked_device').length}
                         </p>
                     </div>
                     <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
                         <p className="text-sm text-orange-700 dark:text-orange-400 font-medium">Failed Attempts</p>
                         <p className="text-2xl font-bold text-orange-900 dark:text-orange-300">
-                            {logs.filter(l => l.status === 'failed').length}
+                            {logs.filter(l => normalizeStatus(l.status) === 'failed').length}
                         </p>
                     </div>
                 </div>
