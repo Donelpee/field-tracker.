@@ -98,13 +98,19 @@ export default function EditStaffModal({ isOpen, onClose, staffMember, onStaffUp
         .from('profiles')
         .update({ device_id: null })
         .eq('id', staffMember.id)
-        .select('device_id')
-        .single()
+        .select('id, device_id')
 
       if (error) throw error
-      if (!data || data.device_id !== null) {
+
+      if (!data || data.length === 0) {
+        throw new Error('No staff record updated. Please check permissions and try again.')
+      }
+
+      const updatedRecord = data[0]
+      if (updatedRecord.device_id !== null) {
         throw new Error('Device lock was not cleared. Please check database permissions or try again.')
       }
+
       alert('Device lock has been reset. The staff member can now log in from a new device.')
       onStaffUpdated()
     } catch (error) {
