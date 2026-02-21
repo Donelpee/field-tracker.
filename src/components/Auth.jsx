@@ -113,8 +113,9 @@ export default function Auth({ onAuthSuccess }) {
           })
         }
 
-        // Explicitly enforce device lock for Staff role only
+        // Device lock enforcement: Only for staff, NOT admin
         const isStaffRole = profileRole === 'staff'
+        const isAdminRole = profileRole === 'admin' || profileRole === 'super admin'
 
         if (isStaffRole && existingDevice?.device_id && existingDevice.device_id !== deviceId) {
           await supabase.auth.signOut()
@@ -127,9 +128,12 @@ export default function Auth({ onAuthSuccess }) {
           throw new Error('This account is locked to another device. Please contact your administrator.')
         }
 
+        // Staff: Set device_id if not already set
         if (isStaffRole && !existingDevice?.device_id) {
           await supabase.from('profiles').update({ device_id: deviceId }).eq('id', authData.user.id)
         }
+
+        // Admin: No device lock enforcement, allow login from any device
 
         // Capture Location on Login
         let locationInfo = null
