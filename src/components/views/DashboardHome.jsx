@@ -43,6 +43,19 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
     const [staffLocations, setStaffLocations] = useState([])
 
     async function fetchStaffLocations() {
+        const today = new Date().toISOString().split('T')[0]
+        const { data: activeAttendance } = await supabase
+            .from('attendance')
+            .select('user_id')
+            .eq('date', today)
+            .is('check_out_time', null)
+
+        const activeUserIds = new Set((activeAttendance || []).map((row) => row.user_id))
+        if (activeUserIds.size === 0) {
+            setStaffLocations([])
+            return
+        }
+
         const { data } = await supabase
             .from('location_history')
             .select(`
@@ -60,8 +73,9 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
             const latestLocations = {}
 
             data.forEach(loc => {
-                const isOnlineStaff = loc.profiles?.role === 'staff' && loc.profiles?.is_online === true
-                if (isOnlineStaff && !latestLocations[loc.user_id]) {
+                const isStaff = String(loc.profiles?.role || '').trim().toLowerCase() === 'staff'
+                const isCheckedIn = activeUserIds.has(loc.user_id)
+                if (isStaff && isCheckedIn && !latestLocations[loc.user_id]) {
                     latestLocations[loc.user_id] = loc
                 }
             })
@@ -72,8 +86,22 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
 
     useEffect(() => {
         fetchStaffLocations()
+        const attendanceChannel = supabase
+            .channel('dashboard-home-attendance')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, fetchStaffLocations)
+            .subscribe()
+
+        const locationChannel = supabase
+            .channel('dashboard-home-locations')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'location_history' }, fetchStaffLocations)
+            .subscribe()
+
         const interval = setInterval(fetchStaffLocations, 30000)
-        return () => clearInterval(interval)
+        return () => {
+            clearInterval(interval)
+            supabase.removeChannel(attendanceChannel)
+            supabase.removeChannel(locationChannel)
+        }
     }, [])
 
     return (
@@ -95,12 +123,12 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800">Live Staff Locations</h2>
-                            <p className="text-sm text-gray-500">Online staff only • Updates every 30s</p>
+                            <p className="text-sm text-gray-500">Checked-in staff only • Updates every 30s</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-medium text-green-700">{staffLocations.length} Online</span>
+                        <span className="text-sm font-medium text-green-700">{staffLocations.length} Checked In</span>
                     </div>
                 </div>
 
@@ -156,7 +184,7 @@ export default function DashboardHome({ staff = [], jobs = [], photos = [] }) {
                     {staffLocations.length === 0 && (
                         <div className="col-span-3 text-center py-12">
                             <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">No staff online. Waiting for check-ins...</p>
+                            <p className="text-gray-500">No staff checked in. Waiting for check-ins...</p>
                         </div>
                     )}
                 </div>

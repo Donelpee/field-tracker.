@@ -57,16 +57,21 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
     try {
       const { data: admins } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('role', 'admin')
+        .select('id, role')
 
-      if (admins && admins.length > 0) {
+      const adminRecipients = (admins || []).filter((profile) => {
+        const role = String(profile.role || '').trim().toLowerCase().replace(/_/g, ' ')
+        return role === 'admin' || role === 'super admin'
+      })
+
+      if (adminRecipients.length > 0) {
         const locationInfo = currentAddress?.short || 'Unknown location'
+        const staffName = userProfile?.full_name || 'A staff member'
 
-        const notifications = admins.map(admin => ({
+        const notifications = adminRecipients.map(admin => ({
           user_id: admin.id,
           title: 'Staff Checked In',
-          message: `${userProfile?.full_name} checked in at ${new Date().toLocaleTimeString()} from ${locationInfo}`,
+          message: `${staffName} logged in at ${new Date().toLocaleTimeString()} from ${locationInfo}`,
           type: 'check_in',
           is_read: false
         }))
@@ -84,19 +89,24 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
     try {
       const { data: admins } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('role', 'admin')
+        .select('id, role')
 
-      if (admins && admins.length > 0) {
+      const adminRecipients = (admins || []).filter((profile) => {
+        const role = String(profile.role || '').trim().toLowerCase().replace(/_/g, ' ')
+        return role === 'admin' || role === 'super admin'
+      })
+
+      if (adminRecipients.length > 0) {
         const locationInfo = currentAddress?.short || 'Unknown location'
+        const staffName = userProfile?.full_name || 'A staff member'
         const hours = todayAttendance?.check_in_time
           ? ((new Date() - new Date(todayAttendance.check_in_time)) / (1000 * 60 * 60)).toFixed(2)
           : '0'
 
-        const notifications = admins.map(admin => ({
+        const notifications = adminRecipients.map(admin => ({
           user_id: admin.id,
           title: 'Staff Checked Out',
-          message: `${userProfile?.full_name} checked out at ${new Date().toLocaleTimeString()} from ${locationInfo}. Total hours: ${hours}h`,
+          message: `${staffName} checked out at ${new Date().toLocaleTimeString()} from ${locationInfo}. Total hours: ${hours}h`,
           type: 'check_out',
           is_read: false
         }))
@@ -136,6 +146,20 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
         }])
 
       if (error) throw error
+
+      await supabase
+        .from('profiles')
+        .update({ is_online: true })
+        .eq('id', userId)
+
+      await supabase
+        .from('location_history')
+        .insert({
+          user_id: userId,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          address_short: currentAddress?.short || `${currentLocation.latitude}, ${currentLocation.longitude}`
+        })
 
       await sendCheckInNotification()
       showToast('Checked in successfully!', 'success')
@@ -180,6 +204,11 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
         .eq('id', todayAttendance.id)
 
       if (error) throw error
+
+      await supabase
+        .from('profiles')
+        .update({ is_online: false })
+        .eq('id', userId)
 
       await sendCheckOutNotification()
       showToast(`Checked out! Total hours: ${totalHours}h`, 'success')

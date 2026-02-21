@@ -411,6 +411,7 @@ export default function StaffDashboard({ session, onSignOut }) {
       {currentView === 'attendance' && (
         <AttendanceWidget
           userId={session.user.id}
+          userProfile={userProfile}
           currentLocation={currentLocation}
           currentAddress={currentAddress}
           locationError={locationError}

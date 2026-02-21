@@ -94,21 +94,39 @@ export default function EditStaffModal({ isOpen, onClose, staffMember, onStaffUp
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ device_id: null })
-        .eq('id', staffMember.id)
-        .select('id, device_id')
+      // Preferred path: SECURITY DEFINER RPC that can run under strict RLS.
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('admin_reset_staff_device_lock', { target_user_id: staffMember.id })
 
-      if (error) throw error
+      if (!rpcError) {
+        if (rpcResult !== true) {
+          throw new Error('Device reset was denied. Please verify admin permissions.')
+        }
+      } else {
+        // Fallback path for environments where RPC has not been created yet.
+        const functionMissing = String(rpcError.code || '') === 'PGRST202'
+          || String(rpcError.message || '').toLowerCase().includes('could not find the function')
 
-      if (!data || data.length === 0) {
-        throw new Error('No staff record updated. Please check permissions and try again.')
-      }
+        if (!functionMissing) {
+          throw rpcError
+        }
 
-      const updatedRecord = data[0]
-      if (updatedRecord.device_id !== null) {
-        throw new Error('Device lock was not cleared. Please check database permissions or try again.')
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ device_id: null })
+          .eq('id', staffMember.id)
+          .select('id, device_id')
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          throw new Error('No staff record updated. Please check permissions and try again.')
+        }
+
+        const updatedRecord = data[0]
+        if (updatedRecord.device_id !== null) {
+          throw new Error('Device lock was not cleared. Please check database permissions or try again.')
+        }
       }
 
       alert('Device lock has been reset. The staff member can now log in from a new device.')
