@@ -66,6 +66,91 @@ export default function EditJobModal({ isOpen, onClose, job, onJobUpdated, curre
 
   const { showToast } = useToast()
 
+  const isRlsError = (error) => {
+    const message = String(error?.message || '').toLowerCase()
+    return message.includes('row-level security') || message.includes('permission denied')
+  }
+
+  const updateJobWithFallback = async (updateData) => {
+    const rpcPayload = {
+      target_job_id: job.id,
+      new_title: updateData.title,
+      new_description: updateData.description,
+      new_client_id: updateData.client_id,
+      new_assigned_to: updateData.assigned_to || null,
+      new_status: updateData.status,
+      new_scheduled_time: updateData.scheduled_time || null
+    }
+
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('admin_update_job', rpcPayload)
+
+    if (!rpcError) {
+      if (rpcResult !== true) {
+        throw new Error('Job update was denied by server permissions.')
+      }
+      return
+    }
+
+    const functionMissing =
+      String(rpcError.code || '') === 'PGRST202' ||
+      String(rpcError.message || '').toLowerCase().includes('could not find the function')
+
+    if (!functionMissing && !isRlsError(rpcError)) {
+      throw rpcError
+    }
+
+    const { error: directUpdateError } = await supabase
+      .from('jobs')
+      .update(updateData)
+      .eq('id', job.id)
+
+    if (!directUpdateError) return
+
+    if (isRlsError(directUpdateError)) {
+      throw new Error(
+        'Job update blocked by security policy. Run docs/ADMIN_UPDATE_JOB_RPC.sql in Supabase and retry.'
+      )
+    }
+    throw directUpdateError
+  }
+
+  const sendJobAssignmentNotification = async ({ assigneeId, jobTitle, clientName, isReassignment, relatedJobId }) => {
+    const fullPayload = {
+      user_id: assigneeId,
+      title: isReassignment ? 'Job Reassigned to You' : 'New Job Assigned',
+      message: `You have been assigned to "${jobTitle}" at ${clientName || 'a client location'}`,
+      type: 'job_assigned',
+      related_job_id: relatedJobId,
+      is_read: false
+    }
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert([fullPayload])
+
+    if (!error) return true
+
+    console.warn('Primary reassignment notification insert failed, retrying fallback:', error)
+
+    const fallbackPayload = {
+      user_id: assigneeId,
+      title: fullPayload.title,
+      message: fullPayload.message,
+      is_read: false
+    }
+    const { error: fallbackError } = await supabase
+      .from('notifications')
+      .insert([fallbackPayload])
+
+    if (fallbackError) {
+      console.error('Fallback reassignment notification failed:', fallbackError)
+      return false
+    }
+
+    return true
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -89,12 +174,7 @@ export default function EditJobModal({ isOpen, onClose, job, onJobUpdated, curre
         updateData.assigned_to = null
       }
 
-      const { error } = await supabase
-        .from('jobs')
-        .update(updateData)
-        .eq('id', job.id)
-
-      if (error) throw error
+      await updateJobWithFallback(updateData)
 
       // Send notification if job was newly assigned or reassigned
       if (newAssignee && newAssignee !== oldAssignee) {
@@ -104,16 +184,17 @@ export default function EditJobModal({ isOpen, onClose, job, onJobUpdated, curre
           .eq('id', formData.client_id)
           .single()
 
-        await supabase
-          .from('notifications')
-          .insert([{
-            user_id: newAssignee,
-            title: oldAssignee ? 'Job Reassigned to You' : 'New Job Assigned',
-            message: `You have been assigned to "${formData.title}" at ${client?.name || 'a client location'}`,
-            type: 'job_assigned',
-            related_job_id: job.id,
-            is_read: false
-          }])
+        const notificationSent = await sendJobAssignmentNotification({
+          assigneeId: newAssignee,
+          jobTitle: formData.title,
+          clientName: client?.name,
+          isReassignment: Boolean(oldAssignee),
+          relatedJobId: job.id
+        })
+
+        if (!notificationSent) {
+          showToast('Job updated, but assignment notification could not be sent.', 'warning')
+        }
       }
 
       showToast('Job updated successfully!', 'success')

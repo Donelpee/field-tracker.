@@ -53,6 +53,34 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
     return 'field'
   }
 
+  const insertNotificationsWithFallback = async (notifications) => {
+    if (!notifications || notifications.length === 0) return
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert(notifications)
+
+    if (!error) return
+
+    console.warn('Primary notification insert failed, retrying fallback payload:', error)
+
+    for (const notification of notifications) {
+      const fallbackPayload = {
+        user_id: notification.user_id,
+        title: notification.title,
+        message: notification.message,
+        is_read: false
+      }
+      const { error: fallbackError } = await supabase
+        .from('notifications')
+        .insert([fallbackPayload])
+
+      if (fallbackError) {
+        console.error('Fallback notification insert failed:', fallbackError, fallbackPayload)
+      }
+    }
+  }
+
   const sendCheckInNotification = async () => {
     try {
       const { data: admins } = await supabase
@@ -76,9 +104,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
           is_read: false
         }))
 
-        await supabase
-          .from('notifications')
-          .insert(notifications)
+        await insertNotificationsWithFallback(notifications)
       }
     } catch (error) {
       console.error('Error sending check-in notification:', error)
@@ -111,9 +137,7 @@ export default function AttendanceWidget({ userId, userProfile, currentLocation,
           is_read: false
         }))
 
-        await supabase
-          .from('notifications')
-          .insert(notifications)
+        await insertNotificationsWithFallback(notifications)
       }
     } catch (error) {
       console.error('Error sending check-out notification:', error)

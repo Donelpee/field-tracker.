@@ -151,14 +151,30 @@ export default function CreateJobModal({ isOpen, onClose, onJobCreated }) {
     if (!assignedUserId) return
     try {
       const { data: client } = await supabase.from('clients').select('name').eq('id', jobData.client_id).single()
-      await supabase.from('notifications').insert([{
+      const fullPayload = {
         user_id: assignedUserId,
         title: 'New Job Assigned',
         message: `You have been assigned to "${jobData.title}" at ${client?.name || 'a client location'}`,
         type: 'job_assigned',
         related_job_id: jobData.id,
         is_read: false
-      }])
+      }
+
+      const { error } = await supabase.from('notifications').insert([fullPayload])
+      if (!error) return
+
+      console.warn('Primary job assignment notification insert failed, retrying fallback:', error)
+
+      const fallbackPayload = {
+        user_id: assignedUserId,
+        title: 'New Job Assigned',
+        message: fullPayload.message,
+        is_read: false
+      }
+      const { error: fallbackError } = await supabase.from('notifications').insert([fallbackPayload])
+      if (fallbackError) {
+        throw fallbackError
+      }
     } catch (error) {
       console.error('Error sending notification:', error)
     }
