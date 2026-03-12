@@ -30,3 +30,6 @@ dist-ssr
 .env.development
 .env.test
 .env.production
+
+# Supabase local cache
+supabase/.temp/
