@@ -5,9 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ops": "vite",
     "build": "vite build",
+    "build:ops": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:customer": "npm --prefix apps/customer-portal run dev",
+    "build:customer": "npm --prefix apps/customer-portal run build",
+    "preview:customer": "npm --prefix apps/customer-portal run preview",
+    "test:e2e:ticketing": "node tests/e2e/ticketing.e2e.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

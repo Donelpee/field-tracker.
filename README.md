@@ -37,6 +37,20 @@ npm run dev
 
 Open the URL printed by Vite (usually `http://localhost:5173`).
 
+## Multi-App Setup (Ops + Customer Portal)
+
+- Ops portal (current app): `npm run dev:ops`
+- Customer portal: `npm run dev:customer`
+
+See [docs/TICKETING_IMPLEMENTATION.md](docs/TICKETING_IMPLEMENTATION.md) for ticketing schema, edge API setup, and rollout instructions.
+Project-specific Supabase CLI deployment commands are in [docs/SUPABASE_DEPLOYMENT_COMMANDS.md](docs/SUPABASE_DEPLOYMENT_COMMANDS.md).
+
+Run ticketing E2E checks (after deploying functions and setting test env vars):
+
+```bash
+npm run test:e2e:ticketing
+```
+
 ## Build & Quality Checks
 
 ```bash

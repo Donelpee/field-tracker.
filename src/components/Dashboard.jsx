@@ -26,6 +26,8 @@ import NotificationBell from './NotificationBell'
 const PerformanceMetrics = lazy(() => import('./PerformanceMetrics'))
 const Settings = lazy(() => import('./Settings'))
 const JobInsights = lazy(() => import('./JobInsights'))
+const TicketsBoard = lazy(() => import('./TicketsBoard'))
+import { featureFlags } from '../lib/featureFlags'
 
 // Modals
 import CreateJobModal from './CreateJobModal'
@@ -126,6 +128,7 @@ export default function Dashboard({ session, onSignOut }) {
     const baseMenuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home, permission: 'dashboard.view' },
         { id: 'jobs', label: 'Jobs', icon: Briefcase, permission: 'jobs.view' },
+        { id: 'tickets', label: 'Tickets', icon: Bell, permission: 'jobs.view' },
         { id: 'staff', label: 'Staff', icon: Users, permission: 'staff.view' },
         { id: 'locations', label: 'Location History', icon: MapPin, permission: 'staff.location' },
         { id: 'photos', label: 'Photos', icon: Image, permission: 'photos.view' },
@@ -136,13 +139,17 @@ export default function Dashboard({ session, onSignOut }) {
         { id: 'analytics', label: 'Job Analysis', icon: Briefcase, permission: 'settings.view' },
     ]
 
+    const normalizedRoleValue = String(userProfile?.role || '').trim().toLowerCase()
+
     const menuItems = baseMenuItems.filter(item => {
+        if (item.id === 'tickets' && !featureFlags.opsTicketModuleEnabled) return false
         if (!item.permission) return true
-        const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'Super Admin'
-        return hasPermission(item.permission) || (isAdmin && permissions.length === 0)
+        const isAdmin = normalizedRoleValue === 'admin' || normalizedRoleValue === 'super admin'
+        if (isAdmin) return true
+        return hasPermission(item.permission)
     })
 
-    const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'Super Admin'
+    const isAdmin = normalizedRoleValue === 'admin' || normalizedRoleValue === 'super admin'
     if (hasPermission('settings.view') || (isAdmin && permissions.length === 0)) {
         menuItems.push({ id: 'settings', label: 'Settings', icon: SettingsIcon })
     }
@@ -251,6 +258,12 @@ export default function Dashboard({ session, onSignOut }) {
                     <div className="animate-fadeIn">
                         <JobsBoard userProfile={userProfile} permissions={permissions} />
                     </div>
+                </Suspense>
+            )}
+
+            {currentView === 'tickets' && (
+                <Suspense fallback={viewFallback}>
+                    <TicketsBoard />
                 </Suspense>
             )}
 

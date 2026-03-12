@@ -1,0 +1,143 @@
+:root {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #f4f8ff 0%, #ecf6f0 100%);
+  color: #15223b;
+}
+
+.page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.hero {
+  background: linear-gradient(120deg, #0f6d5e 0%, #114b8b 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+}
+
+.tabs {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.tabs button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #d5deeb;
+  color: #21314f;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: #114b8b;
+  color: #fff;
+}
+
+.panel {
+  margin-top: 16px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 28px rgba(17, 75, 139, 0.12);
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.grid {
+  display: grid;
+  gap: 10px;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #cad7ed;
+  border-radius: 10px;
+  padding: 10px;
+  width: 100%;
+}
+
+textarea {
+  min-height: 100px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #114b8b;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #0f6d5e;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.notice {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.notice.success {
+  background: #eaf8ee;
+  color: #165c2f;
+}
+
+.notice.error {
+  background: #fff1f0;
+  color: #8d231d;
+}
+
+.ticket-view h3 {
+  margin-bottom: 4px;
+}
+
+.ticket-view ul {
+  margin: 8px 0 12px;
+  padding-left: 18px;
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 14px;
+  }
+
+  .row {
+    flex-direction: column;
+  }
+}
+
